@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>ChapínMarket 🇬🇹 - Tu mercado en línea 100% guatemalteco</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            chapinAzul: '#003366',
+            chapinAzulClaro: '#005fa3',
+            chapinNaranja: '#ff8c32',
+            chapinGris: '#f3f4f6'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .scrollbar-delgada::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .scrollbar-delgada::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 9999px;
+    }
+
+    .overlay-carga {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 60;
+      backdrop-filter: blur(2px);
+    }
+
+    .spinner-chapin {
+      width: 84px;
+      height: 84px;
+      border-radius: 9999px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(0, 51, 102, 0.95), rgba(255, 140, 50, 0.95));
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .spinner-chapin::after {
+      content: "";
+      width: 44px;
+      height: 44px;
+      border-radius: 9999px;
+      border: 4px solid rgba(255, 255, 255, 0.9);
+      border-top-color: rgba(255, 255, 255, 0.2);
+      animation: giro 1s linear infinite;
+    }
+
+    @keyframes giro {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-chapinGris text-slate-900 min-h-screen flex flex-col">
+  <div id="overlay-carga" class="overlay-carga hidden">
+    <div class="spinner-chapin" aria-hidden="true">
+      <img src="img/logo.png" alt="ChapínMarket" class="w-10 h-10 object-contain"
+        onerror="this.style.display='none';" />
+    </div>
+  </div>
+
+  <div class="flex flex-col min-h-screen">
+    <header class="bg-chapinAzul text-white shadow-md">
+      <div class="max-w-6xl mx-auto px-3 sm:px-4">
+        <div class="flex items-center justify-between py-3 gap-2">
+          <button id="boton-logo"
+            class="flex items-center gap-2 font-bold text-lg sm:text-2xl tracking-tight focus:outline-none">
+            <img src="img/logo.png" alt="ChapínMarket" class="h-8 sm:h-10 object-contain"
+              onerror="this.onerror=null; this.src='https://picsum.photos/80/80';" />
+            <span class="hidden sm:inline">Chapín<span class="text-chapinNaranja">Market</span></span>
+          </button>
+
+          <div class="flex-1 mx-2">
+            <div class="relative">
+              <input id="input-busqueda-global" type="search" placeholder="Buscar productos, categorías o temporadas..."
+                class="w-full rounded-full py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
+              <span class="absolute left-3 top-2 text-slate-400">
+                🔍
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button id="boton-busqueda-movil" class="sm:hidden text-xl">
+              🔍
+            </button>
+            <button id="boton-usuario"
+              class="flex items-center gap-1 text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-1 rounded-full">
+              <span class="text-lg">👤</span>
+              <span id="texto-usuario-actual" class="hidden sm:inline-block">Iniciar sesión</span>
+            </button>
+            <button id="boton-carrito" class="relative text-2xl">
+              🛒
+              <span id="contador-carrito"
+                class="absolute -top-1 -right-2 bg-chapinNaranja text-xs rounded-full px-1.5 py-0.5 text-white font-semibold">0</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="contenedor-busqueda-movil" class="sm:hidden hidden pb-2">
+          <div class="relative">
+            <input id="input-busqueda-global-movil" type="search" placeholder="Buscar productos..."
+              class="w-full rounded-full py-1.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
+            <span class="absolute left-3 top-1.5 text-slate-400">
+              🔍
+            </span>
+          </div>
+        </div>
+
+        <nav class="hidden md:flex items-center gap-4 py-2 text-sm">
+          <div class="relative group">
+            <button class="flex items-center gap-2 px-3 py-1 rounded-full bg-white text-chapinAzul font-medium">
+              <span>🧭 Categorías</span>
+              <span>▾</span>
+            </button>
+            <div
+              class="absolute left-0 mt-2 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-100 w-[620px] p-4 z-30 hidden group-hover:grid md:grid-cols-3 gap-4">
+              <div id="mega-menu-columna-1" class="space-y-2 text-sm"></div>
+              <div id="mega-menu-columna-2" class="space-y-2 text-sm"></div>
+              <div id="mega-menu-columna-3" class="space-y-2 text-sm"></div>
+            </div>
+          </div>
+          <button id="boton-ir-promociones" class="hover:text-chapinNaranja">Promociones</button>
+          <button id="boton-ir-categorias" class="hover:text-chapinNaranja">Todas las categorías</button>
+          <button id="boton-ir-temporadas" class="hover:text-chapinNaranja">Temporadas</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 relative">
+      <div id="vista-principal" class="w-full"></div>
+    </main>
+
+    <aside id="panel-carrito"
+      class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-40 flex flex-col lg:flex-col">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-chapinAzul text-white">
+        <h2 class="font-semibold text-sm">Carrito de compras</h2>
+        <button id="cerrar-panel-carrito" class="text-xl leading-none">&times;</button>
+      </div>
+      <div id="lista-carrito-panel" class="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-delgada text-sm"></div>
+      <div class="border-t border-slate-200 p-3 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="font-medium">Subtotal:</span>
+          <span id="subtotal-carrito-panel" class="font-semibold text-chapinAzul">Q0.00</span>
+        </div>
+        <button id="boton-ir-checkout"
+          class="w-full bg-chapinNaranja hover:bg-orange-500 text-white font-semibold py-2 rounded-full text-sm">
+          Ir a pagar
+        </button>
+      </div>
+    </aside>
+
+    <div id="modal-carrito-movil" class="fixed inset-0 bg-black/40 flex items-end justify-center z-50 hidden">
+      <div class="w-full max-h-[85vh] bg-white rounded-t-lg p-3 overflow-y-auto scrollbar-delgada">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Carrito</h3>
+          <button id="cerrar-modal-carrito-movil" class="text-xl">&times;</button>
+        </div>
+        <div id="lista-carrito-movil" class="space-y-2 text-sm"></div>
+        <div class="mt-3">
+          <div class="flex justify-between items-center">
+            <span class="font-semibold">Subtotal</span>
+            <span id="subtotal-carrito-movil" class="font-semibold text-chapinAzul">Q0.00</span>
+          </div>
+          <button id="boton-ir-checkout-movil" class="w-full mt-3 bg-chapinNaranja text-white py-2 rounded-full">Ir a
+            pagar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-general" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-[90vw] max-h-[90vh] overflow-y-auto scrollbar-delgada">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+          <h2 id="modal-titulo" class="font-semibold text-sm"></h2>
+          <button id="modal-cerrar" class="text-xl leading-none">&times;</button>
+        </div>
+        <div id="modal-contenido" class="p-4 text-sm"></div>
+      </div>
+    </div>
+
+    <footer class="bg-chapinAzul text-white mt-4">
+      <div class="max-w-6xl mx-auto px-3 sm:px-4 py-6 text-xs sm:text-sm">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <h3 class="font-semibold mb-2">ChapínMarket</h3>
+            <p class="text-white/70">Tu mercado en línea 100% guatemalteco. Envíos a toda Guatemala.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Ayuda</h3>
+            <ul class="space-y-1 text-white/70">
+              <li>Centro de soporte</li>
+              <li>Preguntas frecuentes</li>
+              <li>Devoluciones</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Nosotros</h3>
+            <ul class="space-y-1 text-white/70">
+              <li>Quiénes somos</li>
+              <li>Trabaja con nosotros</li>
+              <li>Proveedores</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Legal</h3>
+            <ul class="space-y-1 text-white/70">
+              <li>Términos y condiciones</li>
+              <li>Política de privacidad</li>
+            </ul>
+          </div>
+        </div>
+        <div class="pt-4 mt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span class="text-white/60">© <span id="anio-actual"></span> ChapínMarket. Todos los derechos
+            reservados.</span>
+          <span class="text-white/60 text-xs">Mock frontend listo para integración con Java Servlets + Oracle.</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="./api.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+
+</html>
