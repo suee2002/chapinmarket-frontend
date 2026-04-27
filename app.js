@@ -48,14 +48,86 @@ async function cargarDatosIniciales() {
     const respProductos = await llamarApi('/public/productos');
     const respTemporadas = await llamarApi('/public/temporadas');
 
-    estadoApp.categorias = (respCategorias.ok && Array.isArray(respCategorias.datos.data)) ? respCategorias.datos.data : [];
-    estadoApp.productos = (respProductos.ok && Array.isArray(respProductos.datos.data)) ? respProductos.datos.data : [];
-    estadoApp.temporadas = (respTemporadas.ok && Array.isArray(respTemporadas.datos.data)) ? respTemporadas.datos.data : [];
+    // Normalizar datos
+    estadoApp.categorias = respCategorias.ok && Array.isArray(respCategorias.datos.data) ? respCategorias.datos.data : [];
+    estadoApp.productos = respProductos.ok && Array.isArray(respProductos.datos.data) ? respProductos.datos.data : [];
+    estadoApp.temporadas = respTemporadas.ok && Array.isArray(respTemporadas.datos.data) ? respTemporadas.datos.data : [];
 
-    console.log(`✅ Datos del backend | C: ${estadoApp.categorias.length} | P: ${estadoApp.productos.length} | T: ${estadoApp.temporadas.length}`);
+    // Asegurar estructura interna
+    estadoApp.productos = estadoApp.productos.map(p => {
+      // Extraer la imagen correctamente (puede venir en mayúsculas o minúsculas)
+      let imagenUrl = p.IMAGENES || p.imagenes || null;
+      
+      // Si es un objeto CLOB de Oracle, convertirlo a string
+      if (imagenUrl && typeof imagenUrl === 'object') {
+        try {
+          if (imagenUrl.load) {
+            imagenUrl = imagenUrl.load();
+          } else if (imagenUrl.toString && imagenUrl.toString() !== '[object Object]') {
+            imagenUrl = imagenUrl.toString();
+          } else {
+            imagenUrl = null;
+          }
+        } catch(e) {
+          console.error('Error cargando CLOB para producto', p.ID || p.id, e);
+          imagenUrl = null;
+        }
+      }
+      
+      // Si imagenUrl es string pero parece un array JSON (ej: '["url"]'), parsearlo
+      if (imagenUrl && typeof imagenUrl === 'string') {
+        // Quitar comillas dobles al inicio y final si existen
+        let cleaned = imagenUrl.trim();
+        if (cleaned.startsWith('["') && cleaned.endsWith('"]')) {
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              imagenUrl = parsed[0];
+            }
+          } catch(e) {
+            // No es JSON válido, seguir con el string original
+          }
+        }
+      }
+      
+      // Asegurar que sea un array - la imagen es una URL string
+      let imagenesArray = [];
+      if (imagenUrl && typeof imagenUrl === 'string' && imagenUrl.trim() !== '' && imagenUrl !== 'null' && imagenUrl !== 'undefined') {
+        imagenesArray = [imagenUrl.trim()];
+      }
+      
+      return {
+        ...p,
+        id: Number(p.ID || p.id),
+        nombre: p.NOMBRE || p.nombre || 'Sin nombre',
+        descripcion: p.DESCRIPCION || p.descripcion || '',
+        precio: p.PRECIO !== undefined ? Number(p.PRECIO) : (p.precio !== undefined ? Number(p.precio) : 0),
+        stock: p.STOCK !== undefined ? Number(p.STOCK) : (p.stock !== undefined ? Number(p.stock) : 0),
+        imagenes: imagenesArray,
+        categoriaIds: p.CATEGORIAIDS || p.categoriaIds || [],
+        temporadaIds: p.TEMPORADAIDS || p.temporadaIds || []
+      };
+    });
+
+    estadoApp.categorias = estadoApp.categorias.map(c => ({
+      ...c,
+      id: Number(c.ID || c.id),
+      nombre: c.NOMBRE || c.nombre || 'Sin nombre',
+      padreId: c.PADRE_ID !== undefined && c.PADRE_ID !== null ? Number(c.PADRE_ID) : (c.padreId !== undefined ? Number(c.padreId) : null)
+    }));
+
+    estadoApp.temporadas = estadoApp.temporadas.map(t => ({
+      ...t,
+      id: Number(t.ID || t.id),
+      nombre: t.NOMBRE || t.nombre || '',
+      fechaInicio: t.FECHA_INICIO || t.fechaInicio || '',
+      fechaFin: t.FECHA_FIN || t.fechaFin || '',
+      descripcion: t.DESCRIPCION || t.descripcion || ''
+    }));
+
+    console.log(`✅ Datos reales del backend | C: ${estadoApp.categorias.length} | P: ${estadoApp.productos.length} | T: ${estadoApp.temporadas.length}`);
 
     enrichProductosConCategorias();
-
     construirMegaMenu();
   } catch (error) {
     console.error('Error al cargar datos del backend:', error);
@@ -68,7 +140,7 @@ async function cargarDatosIniciales() {
 
 async function restaurarSesionDesdeApi() {
   try {
-    const resp = await llamarApi('/api/auth/me', { method: 'GET' });
+    const resp = await llamarApi('/public/auth/me', { method: 'GET' });
     if (resp.ok && resp.datos) {
       estadoApp.usuarioActual = resp.datos;
       guardarSesionEnLocalStorage();
@@ -106,7 +178,7 @@ function cargarCarritoLocal() {
 async function restaurarCarritoDesdeApi() {
   cargarCarritoLocal();
   try {
-    const resp = await llamarApi('/api/carrito', { method: 'GET' });
+    const resp = await llamarApi('/public/carrito', { method: 'GET' });
     if (resp.ok && Array.isArray(resp.datos)) {
       estadoApp.carrito = resp.datos;
       guardarCarritoLocal();
@@ -240,115 +312,104 @@ function renderizarVista() {
   }
 }
 
-const EMOJIS_CATEGORIA = {
-  'Juguetes y Juegos Tradicionales': '🧸',
-  'Ropa y Textiles': '👕',
-  'Artesanías': '🏺',
-  'Alimentos y Dulces Típicos': '🌮',
-  'Bebidas': '🥤',
-  'Hogar y Cocina': '🏠',
-  'Salud': '🌿',
-  'Música y Cultura': '🎵',
-  'Festividades y Tradiciones': '🎉',
-  'Libros y Cultura': '📖'
-};
+// Mapa de emojis por categoría (sugerencia visual, se puede eliminar o dejar como respaldo)
+const EMOJIS_CATEGORIA = {};
 
-const ESTRUCTURA_CATEGORIAS = {
-  'Juguetes y Juegos Tradicionales': {
-    subs: {
-      'Juguetes tradicionales': ['Trompo de madera con pita', 'Perinola pintada', 'Yax (huesito con pelota)', 'Cincos (piedritas)', 'Chicharra de lata', 'Tipache'],
-      'Juegos de mesa populares': ['Lotería', 'Baraja española', 'Dominó']
+// Función para obtener emoji de una categoría (puedes personalizarlo después)
+function obtenerEmojiCategoria(nombreCategoria) {
+  const defaultEmojis = ['🧸', '👕', '🏺', '🌮', '🥤', '🏠', '🌿', '🎵', '🎉', '📖'];
+  // Usamos el largo del nombre para pseudo-aleatorio
+  const indice = nombreCategoria.length % defaultEmojis.length;
+  return defaultEmojis[indice];
+}
+
+function obtenerImagenProducto(producto) {
+  if (!producto) return '';
+  
+  // 1. Buscar en producto.IMAGENES (mayúsculas) como string
+  if (producto.IMAGENES && typeof producto.IMAGENES === 'string' && producto.IMAGENES.trim() !== '') {
+    return producto.IMAGENES.trim();
+  }
+  
+  // 2. Buscar en producto.imagenes (minúsculas) como string
+  if (producto.imagenes && typeof producto.imagenes === 'string' && producto.imagenes.trim() !== '') {
+    return producto.imagenes.trim();
+  }
+  
+  // 3. Buscar en producto.IMAGENES como array
+  if (producto.IMAGENES && Array.isArray(producto.IMAGENES) && producto.IMAGENES.length > 0 && producto.IMAGENES[0]) {
+    return producto.IMAGENES[0];
+  }
+  
+  // 4. Buscar en producto.imagenes como array
+  if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0 && producto.imagenes[0]) {
+    return producto.imagenes[0];
+  }
+  
+  // 5. IMPORTANTE: Si producto.imagenes es un string que parece un array JSON (ej: '["url"]')
+  if (producto.imagenes && typeof producto.imagenes === 'string') {
+    try {
+      const parsed = JSON.parse(producto.imagenes);
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+        return parsed[0];
+      }
+    } catch(e) {
+      // No es JSON válido, ignorar
     }
-  },
-  'Ropa y Textiles': {
-    subs: {
-      'Trajes típicos': ['Huipil de Chichicastenango', 'Corte de Sololá', 'Corte de Quetzaltenango', 'Traje típico de Totonicapán', 'Traje típico de Antigua Guatemala'],
-      'Calzado tradicional': ['Caites de cuero'],
-      'Accesorios textiles': ['Faja tejida', 'Diadema típica', 'Morral típico', 'Bolsa típica bordada', 'Pulsera artesanal', 'Collar de jade'],
-      'Ropa moderna con identidad guatemalteca': ['Camiseta con diseño maya', 'Sudadera con tejido típico']
-    }
-  },
-  'Artesanías': {
-    subs: {
-      'Cerámica y barro': ['Jarro de barro', 'Comal de barro', 'Olla de barro'],
-      'Madera': ['Máscara de Maximón', 'Máscara de moros', 'Juguetes de madera tallada'],
-      'Textiles artesanales': ['Camino de mesa típico', 'Servilletas bordadas', 'Tapete tejido'],
-      'Jade': ['Dije de jade', 'Pulsera de jade', 'Anillo de jade']
-    }
-  },
-  'Alimentos y Dulces Típicos': {
-    subs: {
-      'Dulces tradicionales': ['Canillitas de leche', 'Cocadas', 'Pepitorias', 'Dulce de panela', 'Higos en miel', 'Ayote en dulce', 'Torrejas', 'Mazapán de pepita', 'Cajeta de leche', 'Alegrías de amaranto'],
-      'Snacks guatemaltecos': ['Tortrix limón', 'Tortrix chile', 'Churritos Diana', 'Nachos Diana', 'Plataninas'],
-      'Panadería tradicional': ['Champurradas', 'Semitas', 'Pan francés', 'Pan de manteca', 'Bizcochos de manteca']
-    }
-  },
-  'Bebidas': {
-    subs: {
-      'Bebidas tradicionales': ['Atol de elote', 'Atol blanco', 'Atol shuco', 'Horchata en polvo', 'Fresco de tamarindo'],
-      'Café guatemalteco': ['Café de Antigua', 'Café de Huehuetenango', 'Café de Cobán'],
-      'Bebidas comerciales guatemaltecas': ['Cerveza Gallo', 'Cerveza Cabro', 'Malta Gallo', 'Gaseosa Salvavidas']
-    }
-  },
-  'Hogar y Cocina': {
-    subs: {
-      'Cocina tradicional': ['Metate (piedra de moler)', 'Tortilladora de madera', 'Molinillo de madera'],
-      'Utensilios del hogar': ['Canasta de mercado', 'Jícara', 'Molcajete']
-    }
-  },
-  'Festividades y Tradiciones': {
-    subs: {
-      'Barriletes': ['Barrilete grande']
-    }
-  },
-  'Libros y Cultura': {
-    subs: {
-      'Libros': ['Popol Vuh', 'Leyendas de Guatemala']
+    // Si es string simple y no es JSON, devolverlo directamente
+    if (producto.imagenes.trim() !== '' && producto.imagenes !== 'null' && producto.imagenes !== 'undefined') {
+      return producto.imagenes;
     }
   }
-};
-
-function enrichProductosConCategorias() {
-  const nameToId = {};
-  estadoApp.categorias.forEach(c => { nameToId[c.nombre] = c.id; });
-
-  estadoApp.productos.forEach(producto => {
-    producto.categoriaIds = producto.categoriaIds || [];
-  });
-
-  Object.keys(ESTRUCTURA_CATEGORIAS).forEach(topNombre => {
-    const topId = nameToId[topNombre];
-    if (!topId) return;
-
-    const estructura = ESTRUCTURA_CATEGORIAS[topNombre];
-
-    if (estructura.subs) {
-      Object.keys(estructura.subs).forEach(subNombre => {
-        const subId = nameToId[subNombre];
-        const nombresProductos = estructura.subs[subNombre];
-
-        nombresProductos.forEach(nombreProd => {
-          const prod = estadoApp.productos.find(p =>
-            p.nombre === nombreProd || p.nombre.includes(nombreProd)
-          );
-          if (prod) {
-            if (!prod.categoriaIds.includes(subId)) prod.categoriaIds.push(subId);
-            if (!prod.categoriaIds.includes(topId)) prod.categoriaIds.push(topId);
-          }
-        });
-      });
+  
+  // 6. Si el valor es un objeto CLOB que no se convirtió (fallback)
+  if (producto.IMAGENES && typeof producto.IMAGENES === 'object') {
+    try {
+      if (producto.IMAGENES.load) {
+        return producto.IMAGENES.load();
+      }
+      if (producto.IMAGENES.toString) {
+        const str = producto.IMAGENES.toString();
+        if (str && str !== '[object Object]') return str;
+      }
+    } catch(e) {
+      console.error('Error extrayendo CLOB:', e);
     }
-  });
+  }
+  
+  return '';
+}
 
-  console.log('✅ Productos enriquecidos con categorías (jerarquía completa)');
+// Ya no necesitamos ESTRUCTURA_CATEGORIAS falsa
+const ESTRUCTURA_CATEGORIAS = {};
+
+// No necesitamos enriquecer nada porque el backend ya envía categoriaIds y temporadaIds correctos
+function enrichProductosConCategorias() {
+  // Solo aseguramos que los arrays existan
+  estadoApp.productos.forEach(producto => {
+    if (!producto.categoriaIds) producto.categoriaIds = [];
+    if (!producto.temporadaIds) producto.temporadaIds = [];
+  });
 }
 
 function obtenerDescendientesCategoria(idPadre) {
-  const descendientes = [idPadre];
-  const hijos = obtenerHijosCategoria(idPadre);
-  hijos.forEach(hijo => {
-    descendientes.push(...obtenerDescendientesCategoria(hijo.id));
-  });
+  const visitados = new Set();
+  const cola = [idPadre];
+  const descendientes = [];
+
+  while (cola.length > 0) {
+    const actual = cola.shift();
+    if (visitados.has(actual)) continue;
+    visitados.add(actual);
+    descendientes.push(actual);
+    
+    const hijos = obtenerHijosCategoria(actual);
+    for (const hijo of hijos) {
+      if (!visitados.has(hijo.id)) {
+        cola.push(hijo.id);
+      }
+    }
+  }
   return descendientes;
 }
 
@@ -397,7 +458,7 @@ function construirMegaMenu() {
     const columna = columnas[indice % 3];
     const hijos = estadoApp.categorias.filter(c => c.padreId === cat.id);
 
-    const emoji = EMOJIS_CATEGORIA[cat.nombre] || '📦';
+        const emoji = obtenerEmojiCategoria(cat.nombre);
 
     const div = document.createElement('div');
     div.innerHTML = `
@@ -466,7 +527,7 @@ function vistaHome() {
           ${categoriasDestacadas
       .map(
         (cat) => {
-          const emoji = EMOJIS_CATEGORIA[cat.nombre] || '📦';
+          const emoji = obtenerEmojiCategoria(cat.nombre);
           return `
                 <button class="bg-white rounded-lg shadow-sm px-2 py-3 flex flex-col items-center justify-center hover:shadow-md"
                         data-ir-categoria="${cat.id}">
@@ -557,22 +618,25 @@ function gridProductos(listaProductos, opciones = {}) {
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
       ${productosPagina
       .map((p) => {
-        const promo = p.temporadaIds && p.temporadaIds.length > 0;
-        const img = p.imagenes && p.imagenes.length ? p.imagenes[0] : 'https://picsum.photos/600/600';
+        // Validación robusta del precio
+        const precio = p.precio !== undefined && p.precio !== null ? Number(p.precio) : 0;
+        const precioFormateado = precio.toFixed(2);
+        
+        const promo = p.temporadaIds && Array.isArray(p.temporadaIds) && p.temporadaIds.length > 0;
+        
+        const img = obtenerImagenProducto(p);
+
         return `
           <div class="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
             <button data-ver-producto="${p.id}" class="relative w-full pb-[100%] overflow-hidden">
-              <img src="${img}" alt="${p.nombre}" class="absolute inset-0 w-full h-full object-cover" />
-              ${promo
-            ? '<span class="absolute top-1 left-1 bg-chapinNaranja text-white text-[10px] px-2 py-0.5 rounded-full">Promoción</span>'
-            : ''
-          }
+              <img src="${img}" alt="${p.nombre || 'Producto'}" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'" />
+              ${promo ? '<span class="absolute top-1 left-1 bg-chapinNaranja text-white text-[10px] px-2 py-0.5 rounded-full">Promoción</span>' : ''}
             </button>
             <div class="p-2 flex-1 flex flex-col">
               <button data-ver-producto="${p.id}" class="text-[11px] font-medium line-clamp-2 text-left mb-1 hover:text-chapinNaranja">
-                ${p.nombre}
+                ${p.nombre || 'Producto sin nombre'}
               </button>
-              <div class="text-chapinAzul font-semibold mb-1">Q${p.precio.toFixed(2)}</div>
+              <div class="text-chapinAzul font-semibold mb-1">Q${precioFormateado}</div>
               <button data-agregar-carrito="${p.id}" class="mt-auto bg-chapinAzul text-white rounded-full py-1 text-[11px] hover:bg-chapinAzulClaro">
                 Agregar al carrito
               </button>
@@ -656,14 +720,28 @@ function vistaDetalleProducto(idProducto) {
       ? (estadoApp.temporadas.find((t) => t.id === producto.temporadaIds[0]) || {}).nombre
       : null;
 
-  const imagenes = producto.imagenes && producto.imagenes.length ? producto.imagenes : ['https://picsum.photos/600/600'];
+    // Asegurar que las imágenes existan
+  let imagenes = [];
+  if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0) {
+    imagenes = producto.imagenes;
+  } else if (producto.imagenes && typeof producto.imagenes === 'string' && producto.imagenes.trim() !== '') {
+    imagenes = [producto.imagenes];
+  } else if (producto.IMAGENES && typeof producto.IMAGENES === 'string' && producto.IMAGENES.trim() !== '') {
+    imagenes = [producto.IMAGENES];
+  } else {
+    // No hay imagen en la BD, dejar array vacío
+    imagenes = [];
+  }
+  // Si no hay imágenes, mostrar un div vacío o un mensaje
+  const tieneImagenes = imagenes.length > 0 && imagenes[0];
+  const imagenPrincipal = tieneImagenes ? imagenes[0] : '';
 
   return `
     <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <!-- Carrusel simple -->
         <div class="relative w-full pb-[100%] bg-white rounded-lg overflow-hidden shadow-sm mb-2">
-          <img id="detalle-imagen-principal" src="${imagenes[0]}" alt="${producto.nombre}" class="absolute inset-0 w-full h-full object-cover" />
+          <img id="detalle-imagen-principal" src="${imagenPrincipal}" alt="${producto.nombre}" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'" />
         </div>
         <div class="flex gap-2 overflow-x-auto pb-1">
           ${imagenes
@@ -785,7 +863,7 @@ function vistaCarritoCompleto() {
         <div class="flex gap-2 bg-white rounded-lg p-2 shadow-sm">
           <input type="checkbox" data-carrito-seleccion="${item.productoId}" class="mt-4" ${item.seleccionado ? 'checked' : ''} />
           <div class="w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
-            <img src="${producto.imagenes[0]}" alt="${producto.nombre}" class="w-full h-full object-cover" />
+            <img src="${producto.imagenes && producto.imagenes[0] ? producto.imagenes[0] : ''}" alt="${producto.nombre}" class="w-full h-full object-cover" onerror="this.style.display='none'" />
           </div>
           <div class="flex-1 text-xs flex flex-col gap-1">
             <div class="flex justify-between gap-2">
@@ -858,7 +936,7 @@ function vistaCheckout() {
     const prod = estadoApp.productos.find(p => p.id === item.productoId);
     return prod ? `
             <div class="flex gap-3 py-3 border-b">
-              <img src="${prod.imagenes[0]}" class="w-16 h-16 object-cover rounded" />
+              <img src="${prod.imagenes && prod.imagenes[0] ? prod.imagenes[0] : ''}" class="w-16 h-16 object-cover rounded" onerror="this.style.display='none'" />
               <div class="flex-1">
                 <p class="font-medium">${prod.nombre}</p>
                 <p class="text-xs text-slate-500">Cant: ${item.cantidad} × Q${prod.precio.toFixed(2)}</p>
@@ -935,7 +1013,7 @@ function configurarEventosVistaCheckout() {
     const envio = 25;
     const total = subtotal + envio;
 
-    const resp = await llamarApi('/api/pago', {
+    const resp = await llamarApi('/public/pago', {
       method: 'POST',
       body: JSON.stringify({
         monto: total,
@@ -1018,7 +1096,7 @@ function configurarEventosVistaCarritoCompleto() {
 
   if (btnVaciarSel) {
     btnVaciarSel.addEventListener('click', async () => {
-      await llamarApi('/api/carrito', {
+      await llamarApi('/public/carrito', {
         method: 'DELETE',
         body: JSON.stringify({ usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null, soloSeleccionados: true })
       });
@@ -1030,7 +1108,7 @@ function configurarEventosVistaCarritoCompleto() {
 
   if (btnVaciarTodo) {
     btnVaciarTodo.addEventListener('click', async () => {
-      await llamarApi('/api/carrito', {
+      await llamarApi('/public/carrito', {
         method: 'DELETE',
         body: JSON.stringify({ usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null })
       });
@@ -1141,7 +1219,7 @@ function configurarEventosVistaLogin() {
     const correo = document.getElementById('login-correo').value.trim();
     const password = document.getElementById('login-password').value;
 
-    const resp = await llamarApi('/api/auth/login', {
+    const resp = await llamarApi('/public/auth/login', {
       method: 'POST',
       body: JSON.stringify({ correo, password })
     });
@@ -1211,7 +1289,7 @@ function configurarEventosVistaRegistro() {
     const password = document.getElementById('reg-password').value;
     const direccion = document.getElementById('reg-direccion').value.trim();
 
-    const resp = await llamarApi('/api/auth/registro', {
+    const resp = await llamarApi('/public/auth/registro', {
       method: 'POST',
       body: JSON.stringify({ nombre, correo, password, direccion })
     });
@@ -1294,7 +1372,7 @@ function configurarEventosVistaPerfil() {
       e.preventDefault();
       const nombre = document.getElementById('perfil-nombre').value;
       const direccion = document.getElementById('perfil-direccion').value;
-      await llamarApi('/api/usuarios/perfil', {
+      await llamarApi('/public/usuarios/perfil', {
         method: 'PUT',
         body: JSON.stringify({ id: estadoApp.usuarioActual.id, nombre, direccion })
       });
@@ -1316,7 +1394,7 @@ function configurarEventosVistaPerfil() {
         vencimiento: document.getElementById('tarjeta-vencimiento').value,
         tipo: 'VISA'
       };
-      await llamarApi('/api/usuarios/tarjetas', {
+      await llamarApi('/public/usuarios/tarjetas', {
         method: 'POST',
         body: JSON.stringify({ usuarioId: estadoApp.usuarioActual.id, tarjeta })
       });
@@ -1329,7 +1407,7 @@ function configurarEventosVistaPerfil() {
   document.querySelectorAll('[data-eliminar-tarjeta]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tarjetaId = parseInt(btn.dataset.eliminarTarjeta);
-      await llamarApi('/api/usuarios/tarjetas', {
+      await llamarApi('/public/usuarios/tarjetas', {
         method: 'DELETE',
         body: JSON.stringify({ usuarioId: estadoApp.usuarioActual.id, tarjetaId })
       });
@@ -1507,22 +1585,26 @@ function construirArbolCategoriasHTML() {
   });
 
   const construirLista = (padreId, nivel) => {
-    const hijos = mapaHijos.get(padreId == null ? 'raiz' : padreId) || [];
+    // Obtener los hijos de la categoría actual
+    const hijos = mapaHijos.get(padreId === null ? 'raiz' : padreId) || [];
+    
+    // Si no hay hijos, no renderizar nada
     if (!hijos.length) return '';
-    return `
-      <ul class="ml-${nivel * 3}">
-        ${hijos
-        .map(
-          (hijo) => `
-          <li class="flex items-center justify-between mb-1">
-            <button class="texto-categoria inline text-left text-[13px] py-0.5" data-id-cat="${hijo.id}">${'— '.repeat(nivel)}${hijo.nombre}</button>
-          </li>
-          ${construirLista(hijo.id, nivel + 1)}
-        `
-        )
-        .join('')}
-      </ul>
-    `;
+    
+    // Mapear cada hijo y construir su HTML, incluyendo sus propios hijos recursivamente
+    let html = `<ul class="ml-${nivel * 3}">`;
+    for (const hijo of hijos) {
+      html += `
+        <li class="flex items-center justify-between mb-1">
+          <button class="texto-categoria inline text-left text-[13px] py-0.5" data-id-cat="${hijo.id}">
+            ${'— '.repeat(nivel)}${hijo.nombre}
+          </button>
+        </li>`;
+      // Llamada recursiva CORRECTA: fuera del string template
+      html += construirLista(hijo.id, nivel + 1);
+    }
+    html += `</ul>`;
+    return html;
   };
 
   return construirLista(null, 0);
@@ -1541,7 +1623,7 @@ function configurarEventosVistaAdmin() {
       const nombre = fd.get('nombre');
       const padreId = fd.get('padreId') ? parseInt(fd.get('padreId')) : null;
 
-      const resp = await llamarApi('/api/categorias', {
+      const resp = await llamarApi('/public/categorias', {
         method: 'POST',
         body: JSON.stringify({ nombre, padreId })
       });
@@ -1573,7 +1655,7 @@ function configurarEventosVistaAdmin() {
         .filter(Boolean)
         .slice(0, 10);
 
-      const resp = await llamarApi('/api/productos', {
+      const resp = await llamarApi('/public/productos', {
         method: 'POST',
         body: JSON.stringify({
           nombre,
@@ -1606,7 +1688,7 @@ function configurarEventosVistaAdmin() {
       const fechaFin = fd.get('fechaFin');
       const descripcion = fd.get('descripcion');
 
-      const resp = await llamarApi('/api/temporadas', {
+      const resp = await llamarApi('/public/temporadas', {
         method: 'POST',
         body: JSON.stringify({ nombre, fechaInicio, fechaFin, descripcion })
       });
@@ -1627,7 +1709,7 @@ function configurarEventosVistaAdmin() {
       const fd = new FormData(formCarga);
       const csvProductos = fd.get('csv');
 
-      const resp = await llamarApi('/api/admin/carga-masiva', {
+      const resp = await llamarApi('/public/admin/carga-masiva', {
         method: 'POST',
         body: JSON.stringify({ csvProductos })
       });
@@ -1730,7 +1812,7 @@ function configurarEventosVistaTemporadas() {
 
 async function agregarAlCarrito(productoId, cantidad) {
   try {
-    const resp = await llamarApi('/api/carrito', {
+    const resp = await llamarApi('/public/carrito', {
       method: 'POST',
       body: JSON.stringify({
         usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
@@ -1752,7 +1834,7 @@ async function agregarAlCarrito(productoId, cantidad) {
 
 async function actualizarCantidadCarrito(productoId, cantidad) {
   try {
-    const resp = await llamarApi('/api/carrito', {
+    const resp = await llamarApi('/public/carrito', {
       method: 'PUT',
       body: JSON.stringify({
         usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
@@ -1773,7 +1855,7 @@ async function actualizarCantidadCarrito(productoId, cantidad) {
 
 async function actualizarSeleccionCarrito(productoId, seleccionado) {
   try {
-    const resp = await llamarApi('/api/carrito', {
+    const resp = await llamarApi('/public/carrito', {
       method: 'PUT',
       body: JSON.stringify({
         usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
@@ -1793,7 +1875,7 @@ async function actualizarSeleccionCarrito(productoId, seleccionado) {
 
 async function eliminarDelCarrito(productoId) {
   try {
-    const resp = await llamarApi('/api/carrito', {
+    const resp = await llamarApi('/public/carrito', {
       method: 'DELETE',
       body: JSON.stringify({ usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null, productoId })
     });
@@ -1942,7 +2024,7 @@ function cerrarModal() {
 
 async function cerrarSesion() {
   try {
-    const resp = await llamarApi('/api/auth/logout', { method: 'POST' });
+    const resp = await llamarApi('/public/auth/logout', { method: 'POST' });
     if (resp.ok) {
       estadoApp.usuarioActual = null;
       localStorage.removeItem('chapinMarket_usuario');
@@ -2113,6 +2195,67 @@ function actualizarTextoUsuario() {
   } else {
     texto.textContent = 'Iniciar sesión';
   }
+}
+
+// Inicializar hero banner con carrusel
+function initHeroBanner() {
+  const container = document.getElementById('hero-banner-container');
+  if (!container) return;
+  
+  const heroSlides = [
+    {
+      title: 'Envíos a toda <span>Guatemala</span>',
+      subtitle: 'Compra en ChapínMarket y recibe en la puerta de tu casa con nuestra flota propia.',
+      cta: 'Comprar ahora'
+    },
+    {
+      title: 'Promociones de <span>Fiestas Patrias</span>',
+      subtitle: 'Hasta 40% de descuento en productos seleccionados. ¡No te lo pierdas!',
+      cta: 'Ver ofertas'
+    },
+    {
+      title: 'Artesanía <span>Guatemalteca</span>',
+      subtitle: 'Apoya a los artesanos locales con cada compra. Productos únicos y auténticos.',
+      cta: 'Explorar'
+    }
+  ];
+  
+  let currentSlide = 0;
+  
+  function renderSlide(index) {
+    const slide = heroSlides[index];
+    container.innerHTML = `
+      <div class="hero-content">
+        <h1 class="hero-title">${slide.title}</h1>
+        <p class="hero-subtitle">${slide.subtitle}</p>
+        <button class="btn-hero" id="hero-cta">
+          <img src="https://cdn3d.iconscout.com/3d/premium/thumb/camion-3d-icon-png-download-3918064.png" alt="Camión" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />
+          ${slide.cta} →
+        </button>
+      </div>
+      <div class="hero-indicators">
+        ${heroSlides.map((_, i) => `<div class="hero-dot ${i === index ? 'active' : ''}" data-slide="${i}"></div>`).join('')}
+      </div>
+    `;
+    
+    document.getElementById('hero-cta')?.addEventListener('click', () => {
+      window.location.hash = '#/categorias';
+    });
+    
+    document.querySelectorAll('.hero-dot').forEach(dot => {
+      dot.addEventListener('click', (e) => {
+        currentSlide = parseInt(e.target.dataset.slide);
+        renderSlide(currentSlide);
+      });
+    });
+  }
+  
+  renderSlide(currentSlide);
+  
+  setInterval(() => {
+    currentSlide = (currentSlide + 1) % heroSlides.length;
+    renderSlide(currentSlide);
+  }, 5000);
 }
 
 window.chapinMarket = {
