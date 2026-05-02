@@ -1,3 +1,5 @@
+<!-- index.html - Versión con un solo botón flotante de carrito -->
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -46,26 +48,18 @@
             <div class="relative">
               <input id="input-busqueda-global" type="search" placeholder="Buscar productos, categorías o temporadas..."
                 class="w-full rounded-full py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
-              <span class="absolute left-3 top-2 text-slate-400">
-                🔍
-              </span>
+              <span class="absolute left-3 top-2 text-slate-400">🔍</span>
             </div>
           </div>
 
           <div class="flex items-center gap-3">
-            <button id="boton-busqueda-movil" class="sm:hidden text-xl">
-              🔍
-            </button>
+            <button id="boton-busqueda-movil" class="sm:hidden text-xl">🔍</button>
             <button id="boton-usuario"
               class="flex items-center gap-1 text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-1 rounded-full">
               <span class="text-lg">👤</span>
               <span id="texto-usuario-actual" class="hidden sm:inline-block">Iniciar sesión</span>
             </button>
-            <button id="boton-carrito" class="relative text-2xl">
-              🛒
-              <span id="contador-carrito"
-                class="absolute -top-1 -right-2 bg-chapinNaranja text-xs rounded-full px-1.5 py-0.5 text-white font-semibold">0</span>
-            </button>
+            <!-- ELIMINADO: boton-carrito del header -->
           </div>
         </div>
 
@@ -73,9 +67,7 @@
           <div class="relative">
             <input id="input-busqueda-global-movil" type="search" placeholder="Buscar productos..."
               class="w-full rounded-full py-1.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
-            <span class="absolute left-3 top-1.5 text-slate-400">
-              🔍
-            </span>
+            <span class="absolute left-3 top-1.5 text-slate-400">🔍</span>
           </div>
         </div>
 
@@ -103,42 +95,79 @@
       <div id="vista-principal" class="w-full"></div>
     </main>
 
+    <!-- PANEL CARRITO LATERAL (ÚNICO: funciona en todos los dispositivos) -->
     <aside id="panel-carrito"
-      class="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-40 flex flex-col lg:flex-col">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-chapinAzul text-white">
-        <h2 class="font-semibold text-sm">Carrito de compras</h2>
-        <button id="cerrar-panel-carrito" class="text-xl leading-none">&times;</button>
+      class="panel-carrito-lateral fixed top-0 right-0 h-full bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-40 flex flex-col">
+
+      <div
+        class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-chapinAzul text-white flex-shrink-0">
+        <h2 class="font-semibold text-sm">🛒 Carrito de compras</h2>
+        <button id="cerrar-panel-carrito"
+          class="text-xl leading-none hover:text-chapinNaranja transition">&times;</button>
       </div>
+
       <div id="lista-carrito-panel" class="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-delgada text-sm"></div>
-      <div class="border-t border-slate-200 p-3 space-y-2 text-sm">
+
+      <div class="flex-shrink-0 border-t border-slate-200 p-3 space-y-2 text-sm bg-white">
         <div class="flex justify-between">
           <span class="font-medium">Subtotal:</span>
           <span id="subtotal-carrito-panel" class="font-semibold text-chapinAzul">Q0.00</span>
         </div>
         <button id="boton-ir-checkout"
-          class="w-full bg-chapinNaranja hover:bg-orange-500 text-white font-semibold py-2 rounded-full text-sm">
-          Ir a pagar
+          class="w-full bg-chapinNaranja hover:bg-orange-500 text-white font-semibold py-2 rounded-full text-sm transition">
+          💳 Ir a pagar
         </button>
+      </div>
+
+      <!-- COMPRA CON CONFIANZA -->
+      <div class="confianza-container">
+        <h3 class="confianza-titulo-seccion">Compra con Confianza</h3>
+
+        <div class="confianza-item">
+          <div class="confianza-icono-wrapper">
+            <img src="https://cdn3d.iconscout.com/3d/premium/thumb/informe-de-calidad-3d-icon-png-download-9102568.png"
+              alt="Confianza garantizada" class="confianza-icono" />
+          </div>
+          <div class="confianza-texto">
+            <p class="confianza-titulo">Confianza garantizada</p>
+            <p class="confianza-subtitulo">Productos seleccionados</p>
+          </div>
+        </div>
+
+        <div class="confianza-item">
+          <div class="confianza-icono-wrapper">
+            <img src="https://cdn3d.iconscout.com/3d/premium/thumb/atencion-al-cliente-3d-icon-png-download-8541815.png"
+              alt="Atención al cliente" class="confianza-icono" />
+          </div>
+          <div class="confianza-texto">
+            <p class="confianza-titulo">Atención al cliente</p>
+            <p class="confianza-subtitulo">Estamos para ayudarte</p>
+          </div>
+        </div>
+
+        <div class="confianza-item">
+          <div class="confianza-icono-wrapper">
+            <img
+              src="https://cdn3d.iconscout.com/3d/premium/thumb/politica-de-devoluciones-3d-icon-png-download-10918421.png"
+              alt="Devoluciones fáciles" class="confianza-icono" />
+          </div>
+          <div class="confianza-texto">
+            <p class="confianza-titulo">Devoluciones fáciles</p>
+            <p class="confianza-subtitulo">Si no está satisfecho</p>
+          </div>
+        </div>
       </div>
     </aside>
 
-    <div id="modal-carrito-movil" class="fixed inset-0 bg-black/40 flex items-end justify-center z-50 hidden">
-      <div class="w-full max-h-[85vh] bg-white rounded-t-lg p-3 overflow-y-auto scrollbar-delgada">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="font-semibold">Carrito</h3>
-          <button id="cerrar-modal-carrito-movil" class="text-xl">&times;</button>
-        </div>
-        <div id="lista-carrito-movil" class="space-y-2 text-sm"></div>
-        <div class="mt-3">
-          <div class="flex justify-between items-center">
-            <span class="font-semibold">Subtotal</span>
-            <span id="subtotal-carrito-movil" class="font-semibold text-chapinAzul">Q0.00</span>
-          </div>
-          <button id="boton-ir-checkout-movil" class="w-full mt-3 bg-chapinNaranja text-white py-2 rounded-full">Ir a
-            pagar</button>
-        </div>
-      </div>
-    </div>
+    <!-- ELIMINADO: panel-carrito-movil (bottom sheet) completamente -->
+
+    <!-- BOTÓN FLOTANTE PARA ABRIR CARRITO - ÚNICO punto de acceso -->
+    <button id="boton-flotante-carrito"
+      class="boton-flotante-carrito fixed bottom-4 right-4 bg-chapinNaranja text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl z-30 hover:bg-orange-500 transition">
+      🛒
+      <span id="contador-carrito-flotante"
+        class="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full px-1.5 py-0.5 text-white font-semibold">0</span>
+    </button>
 
     <div id="modal-general" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-[90vw] max-h-[90vh] overflow-y-auto scrollbar-delgada">

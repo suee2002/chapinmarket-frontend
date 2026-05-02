@@ -21,81 +21,115 @@ const estadoApp = {
 
 let costoEnvio = 0;
 
+// Fuerza la ocultación del overlay después de 10 segundos (por si algo falla)
+let forceHideTimeout = setTimeout(() => {
+  const overlay = document.getElementById('overlay-carga');
+  if (overlay && !overlay.classList.contains('hidden')) {
+    console.warn('Forzando ocultación del overlay por timeout global');
+    overlay.classList.add('hidden');
+    const main = document.getElementById('vista-principal');
+    if (main && main.innerHTML.trim() === '') {
+      main.innerHTML = '<div class="bg-red-100 text-red-700 p-4 rounded">⚠️ El sitio tardó demasiado en responder. Verifica que el backend esté corriendo.</div>';
+    }
+  }
+}, 10000);
+
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('anio-actual').textContent = new Date().getFullYear();
-
-  window.addEventListener('chapinmarket:carga', (e) => {
+  // Timeout de seguridad: si el backend no responde en 10 segundos,
+  // forzamos la ocultación del overlay y mostramos un mensaje.
+  let forceHideTimeout = setTimeout(() => {
     const overlay = document.getElementById('overlay-carga');
-    if (!overlay) return;
-    if (e.detail && e.detail.activo) overlay.classList.remove('hidden');
-    else overlay.classList.add('hidden');
-  });
+    if (overlay && !overlay.classList.contains('hidden')) {
+      console.warn('Forzando ocultación del overlay por timeout global');
+      overlay.classList.add('hidden');
+      const main = document.getElementById('vista-principal');
+      if (main && main.innerHTML.trim() === '') {
+        main.innerHTML = '<div class="bg-red-100 text-red-700 p-4 rounded">⚠️ El sitio tardó demasiado en responder. Verifica que el backend esté corriendo.</div>';
+      }
+    }
+  }, 10000);
 
-  await cargarDatosIniciales();
-  await restaurarSesionDesdeApi();
-  await restaurarCarritoDesdeApi();
+  try {
+    document.getElementById('anio-actual').textContent = new Date().getFullYear();
 
-  configurarEventosGlobales();
-  configurarRouter();
+    window.addEventListener('chapinmarket:carga', (e) => {
+      const overlay = document.getElementById('overlay-carga');
+      if (!overlay) return;
+      if (e.detail && e.detail.activo) {
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    });
 
-  manejarCambioRuta();
-  iniciarHeroRotativo();
+    await cargarDatosIniciales();
+    await restaurarSesionDesdeApi();
+    await restaurarCarritoDesdeApi();
+
+    // Forzar actualización visual del carrito después de la carga
+    setTimeout(() => {
+      actualizarIconoCarrito();
+      actualizarPanelCarrito();
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
+    }, 100);
+
+    configurarEventosGlobales();
+    configurarRouter();
+
+    manejarCambioRuta();
+    iniciarHeroRotativo();
+  } catch (error) {
+    console.error('Error crítico en la inicialización:', error);
+  } finally {
+    clearTimeout(forceHideTimeout);
+    const overlay = document.getElementById('overlay-carga');
+    if (overlay) overlay.classList.add('hidden');
+  }
 });
 
 async function cargarDatosIniciales() {
   try {
-    const respCategorias = await llamarApi('/public/categorias');
-    const respProductos = await llamarApi('/public/productos');
-    const respTemporadas = await llamarApi('/public/temporadas');
+    // Peticiones individuales con manejo de error por separado
+    const respCategorias = await llamarApi('/public/categorias').catch(e => ({ ok: false, datos: [] }));
+    const respProductos = await llamarApi('/public/productos').catch(e => ({ ok: false, datos: [] }));
+    const respTemporadas = await llamarApi('/public/temporadas').catch(e => ({ ok: false, datos: [] }));
 
-    // Normalizar datos
     estadoApp.categorias = respCategorias.ok && Array.isArray(respCategorias.datos.data) ? respCategorias.datos.data : [];
     estadoApp.productos = respProductos.ok && Array.isArray(respProductos.datos.data) ? respProductos.datos.data : [];
     estadoApp.temporadas = respTemporadas.ok && Array.isArray(respTemporadas.datos.data) ? respTemporadas.datos.data : [];
 
-    // Asegurar estructura interna
+    if (!respCategorias.ok) console.error('Error cargando categorías:', respCategorias.mensaje);
+    if (!respProductos.ok) console.error('Error cargando productos:', respProductos.mensaje);
+    if (!respTemporadas.ok) console.error('Error cargando temporadas:', respTemporadas.mensaje);
+
+    // Normalizar productos
     estadoApp.productos = estadoApp.productos.map(p => {
-      // Extraer la imagen correctamente (puede venir en mayúsculas o minúsculas)
       let imagenUrl = p.IMAGENES || p.imagenes || null;
-      
-      // Si es un objeto CLOB de Oracle, convertirlo a string
       if (imagenUrl && typeof imagenUrl === 'object') {
         try {
-          if (imagenUrl.load) {
-            imagenUrl = imagenUrl.load();
-          } else if (imagenUrl.toString && imagenUrl.toString() !== '[object Object]') {
-            imagenUrl = imagenUrl.toString();
-          } else {
-            imagenUrl = null;
-          }
-        } catch(e) {
+          if (imagenUrl.load) imagenUrl = imagenUrl.load();
+          else if (imagenUrl.toString && imagenUrl.toString() !== '[object Object]') imagenUrl = imagenUrl.toString();
+          else imagenUrl = null;
+        } catch (e) {
           console.error('Error cargando CLOB para producto', p.ID || p.id, e);
           imagenUrl = null;
         }
       }
-      
-      // Si imagenUrl es string pero parece un array JSON (ej: '["url"]'), parsearlo
       if (imagenUrl && typeof imagenUrl === 'string') {
-        // Quitar comillas dobles al inicio y final si existen
         let cleaned = imagenUrl.trim();
         if (cleaned.startsWith('["') && cleaned.endsWith('"]')) {
           try {
             const parsed = JSON.parse(cleaned);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              imagenUrl = parsed[0];
-            }
-          } catch(e) {
-            // No es JSON válido, seguir con el string original
-          }
+            if (Array.isArray(parsed) && parsed.length > 0) imagenUrl = parsed[0];
+          } catch (e) { }
         }
       }
-      
-      // Asegurar que sea un array - la imagen es una URL string
       let imagenesArray = [];
       if (imagenUrl && typeof imagenUrl === 'string' && imagenUrl.trim() !== '' && imagenUrl !== 'null' && imagenUrl !== 'undefined') {
         imagenesArray = [imagenUrl.trim()];
       }
-      
       return {
         ...p,
         id: Number(p.ID || p.id),
@@ -129,12 +163,18 @@ async function cargarDatosIniciales() {
 
     enrichProductosConCategorias();
     construirMegaMenu();
+
+    // Si todas las respuestas fallaron, mostrar mensaje amigable
+    if (!respCategorias.ok && !respProductos.ok && !respTemporadas.ok) {
+      mostrarModal('Error de conexión', '<p>No se pudo cargar la información del servidor. Verifica que el backend esté funcionando y que la base de datos Oracle esté activa.</p>');
+    }
   } catch (error) {
-    console.error('Error al cargar datos del backend:', error);
+    console.error('Error crítico en cargarDatosIniciales:', error);
     estadoApp.categorias = [];
     estadoApp.productos = [];
     estadoApp.temporadas = [];
     construirMegaMenu();
+    mostrarModal('Error crítico', '<p>Ocurrió un error inesperado al cargar los datos. Revisa la consola para más detalles.</p>');
   }
 }
 
@@ -145,9 +185,10 @@ async function restaurarSesionDesdeApi() {
       estadoApp.usuarioActual = resp.datos;
       guardarSesionEnLocalStorage();
       actualizarTextoUsuario();
+    } else {
+      estadoApp.usuarioActual = null;
     }
   } catch (e) {
-    console.warn('No hay sesión activa');
     estadoApp.usuarioActual = null;
   }
 }
@@ -177,16 +218,57 @@ function cargarCarritoLocal() {
 
 async function restaurarCarritoDesdeApi() {
   cargarCarritoLocal();
+  await sincronizarCarritoDesdeApi();
+  actualizarIconoCarrito();
+  actualizarPanelCarrito();
+}
+
+async function sincronizarCarritoDesdeApi() {
   try {
     const resp = await llamarApi('/public/carrito', { method: 'GET' });
-    if (resp.ok && Array.isArray(resp.datos)) {
-      estadoApp.carrito = resp.datos;
-      guardarCarritoLocal();
-      actualizarIconoCarrito();
-      actualizarPanelCarrito();
+
+    console.log('Respuesta del carrito desde API:', resp);
+
+    let itemsCarrito = null;
+
+    if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+      itemsCarrito = resp.datos.items;
+    }
+    else if (resp.datos && resp.datos.data && resp.datos.data.items && Array.isArray(resp.datos.data.items)) {
+      itemsCarrito = resp.datos.data.items;
+    }
+    else if (resp.datos && Array.isArray(resp.datos)) {
+      itemsCarrito = resp.datos;
+    }
+    else if (resp.datos && resp.datos.data && Array.isArray(resp.datos.data)) {
+      itemsCarrito = resp.datos.data;
+    }
+
+    if (itemsCarrito && itemsCarrito.length > 0) {
+      estadoApp.carrito = itemsCarrito;
+      console.log(`Carrito sincronizado: ${itemsCarrito.length} items`);
+    } else if (itemsCarrito && itemsCarrito.length === 0) {
+      estadoApp.carrito = [];
+      console.log('Carrito sincronizado: vacío');
+    } else {
+      console.warn('No se pudieron extraer items del carrito, manteniendo estado actual');
+    }
+
+    guardarCarritoLocal();
+    actualizarIconoCarrito();
+    actualizarPanelCarrito();
+
+    if (estadoApp.vistaActual === 'carrito') {
+      renderizarVista();
     }
   } catch (e) {
-    console.warn('No se pudo sincronizar carrito', e);
+    console.error('Error al sincronizar carrito:', e);
+    if (!estadoApp.carrito || estadoApp.carrito.length === 0) {
+      estadoApp.carrito = [];
+      guardarCarritoLocal();
+    }
+    actualizarIconoCarrito();
+    actualizarPanelCarrito();
   }
 }
 
@@ -312,80 +394,92 @@ function renderizarVista() {
   }
 }
 
-// Mapa de emojis por categoría (sugerencia visual, se puede eliminar o dejar como respaldo)
 const EMOJIS_CATEGORIA = {};
 
-// Función para obtener emoji de una categoría (puedes personalizarlo después)
 function obtenerEmojiCategoria(nombreCategoria) {
   const defaultEmojis = ['🧸', '👕', '🏺', '🌮', '🥤', '🏠', '🌿', '🎵', '🎉', '📖'];
-  // Usamos el largo del nombre para pseudo-aleatorio
   const indice = nombreCategoria.length % defaultEmojis.length;
   return defaultEmojis[indice];
 }
 
 function obtenerImagenProducto(producto) {
   if (!producto) return '';
-  
-  // 1. Buscar en producto.IMAGENES (mayúsculas) como string
-  if (producto.IMAGENES && typeof producto.IMAGENES === 'string' && producto.IMAGENES.trim() !== '') {
-    return producto.IMAGENES.trim();
-  }
-  
-  // 2. Buscar en producto.imagenes (minúsculas) como string
-  if (producto.imagenes && typeof producto.imagenes === 'string' && producto.imagenes.trim() !== '') {
-    return producto.imagenes.trim();
-  }
-  
-  // 3. Buscar en producto.IMAGENES como array
-  if (producto.IMAGENES && Array.isArray(producto.IMAGENES) && producto.IMAGENES.length > 0 && producto.IMAGENES[0]) {
-    return producto.IMAGENES[0];
-  }
-  
-  // 4. Buscar en producto.imagenes como array
-  if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0 && producto.imagenes[0]) {
-    return producto.imagenes[0];
-  }
-  
-  // 5. IMPORTANTE: Si producto.imagenes es un string que parece un array JSON (ej: '["url"]')
-  if (producto.imagenes && typeof producto.imagenes === 'string') {
-    try {
-      const parsed = JSON.parse(producto.imagenes);
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-        return parsed[0];
+
+  // Array de posibles campos de imagen a verificar
+  const posiblesCampos = [
+    'imagen',           // Campo 'imagen' que usamos en el carrito
+    'imagenes',         // Campo 'imagenes' (puede ser string o array)
+    'IMAGENES',         // Campo en mayúsculas del backend
+    'IMAGEN',           // Campo alternativo
+    'imagenPrincipal'   // Campo adicional
+  ];
+
+  // Función auxiliar para validar si es una URL válida
+  const esUrlValida = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    url = url.trim();
+    if (url === '' || url === 'null' || url === 'undefined') return false;
+    // Verificar si es una URL válida (http, https, o data:image)
+    return (url.startsWith('http') || url.startsWith('data:image') || url.startsWith('/'));
+  };
+
+  // Buscar en todos los campos posibles
+  for (const campo of posiblesCampos) {
+    const valor = producto[campo];
+    if (!valor) continue;
+
+    // Si es un string
+    if (typeof valor === 'string') {
+      const urlLimpia = valor.trim();
+      if (esUrlValida(urlLimpia)) {
+        // Si parece ser JSON, intentar decodificar
+        if (urlLimpia.startsWith('[') || urlLimpia.startsWith('{"')) {
+          try {
+            const parsed = JSON.parse(urlLimpia);
+            if (Array.isArray(parsed) && parsed.length > 0 && esUrlValida(parsed[0])) {
+              return parsed[0];
+            }
+            if (typeof parsed === 'string' && esUrlValida(parsed)) {
+              return parsed;
+            }
+          } catch (e) {
+            // No es JSON válido, continuar
+          }
+        }
+        return urlLimpia;
       }
-    } catch(e) {
-      // No es JSON válido, ignorar
     }
-    // Si es string simple y no es JSON, devolverlo directamente
-    if (producto.imagenes.trim() !== '' && producto.imagenes !== 'null' && producto.imagenes !== 'undefined') {
-      return producto.imagenes;
+
+    // Si es un array
+    if (Array.isArray(valor) && valor.length > 0) {
+      const primeraImagen = valor[0];
+      if (typeof primeraImagen === 'string' && esUrlValida(primeraImagen)) {
+        return primeraImagen;
+      }
+    }
+
+    // Si es un objeto (caso CLOB de Oracle)
+    if (typeof valor === 'object' && valor !== null) {
+      if (valor.load && typeof valor.load === 'function') {
+        try {
+          const contenido = valor.load();
+          if (typeof contenido === 'string' && esUrlValida(contenido)) {
+            return contenido;
+          }
+        } catch (e) {
+          console.error('Error cargando CLOB:', e);
+        }
+      }
     }
   }
-  
-  // 6. Si el valor es un objeto CLOB que no se convirtió (fallback)
-  if (producto.IMAGENES && typeof producto.IMAGENES === 'object') {
-    try {
-      if (producto.IMAGENES.load) {
-        return producto.IMAGENES.load();
-      }
-      if (producto.IMAGENES.toString) {
-        const str = producto.IMAGENES.toString();
-        if (str && str !== '[object Object]') return str;
-      }
-    } catch(e) {
-      console.error('Error extrayendo CLOB:', e);
-    }
-  }
-  
-  return '';
+
+  // Si no se encontró ninguna imagen válida, retornar imagen por defecto
+  return 'https://via.placeholder.com/300x300?text=Sin+Imagen';
 }
 
-// Ya no necesitamos ESTRUCTURA_CATEGORIAS falsa
 const ESTRUCTURA_CATEGORIAS = {};
 
-// No necesitamos enriquecer nada porque el backend ya envía categoriaIds y temporadaIds correctos
 function enrichProductosConCategorias() {
-  // Solo aseguramos que los arrays existan
   estadoApp.productos.forEach(producto => {
     if (!producto.categoriaIds) producto.categoriaIds = [];
     if (!producto.temporadaIds) producto.temporadaIds = [];
@@ -402,7 +496,7 @@ function obtenerDescendientesCategoria(idPadre) {
     if (visitados.has(actual)) continue;
     visitados.add(actual);
     descendientes.push(actual);
-    
+
     const hijos = obtenerHijosCategoria(actual);
     for (const hijo of hijos) {
       if (!visitados.has(hijo.id)) {
@@ -458,7 +552,7 @@ function construirMegaMenu() {
     const columna = columnas[indice % 3];
     const hijos = estadoApp.categorias.filter(c => c.padreId === cat.id);
 
-        const emoji = obtenerEmojiCategoria(cat.nombre);
+    const emoji = obtenerEmojiCategoria(cat.nombre);
 
     const div = document.createElement('div');
     div.innerHTML = `
@@ -475,7 +569,6 @@ function construirMegaMenu() {
     columna.appendChild(div);
   });
 
-  // Click handler robusto
   columnas.forEach(columna => {
     columna.addEventListener('click', (e) => {
       const elem = e.target.closest('[data-id-cat]');
@@ -494,12 +587,10 @@ function obtenerHijosCategoria(idPadre) {
 function vistaHome() {
   const productosRecomendados = estadoApp.productos.slice(0, 8);
   const temporadasActivas = estadoApp.temporadas;
-
   const categoriasDestacadas = estadoApp.categorias.filter((c) => c.padreId === null).slice(0, 6);
 
   return `
     <section class="space-y-6">
-      <!-- Hero rotativo -->
       <div class="relative rounded-xl overflow-hidden bg-gradient-to-r from-chapinAzul to-chapinAzulClaro text-white p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
         <div class="flex-1">
           <div id="hero-mensaje-1" class="hero-mensaje">
@@ -520,36 +611,28 @@ function vistaHome() {
         </div>
       </div>
 
-      <!-- Categorías destacadas -->
       <section>
         <h3 class="font-semibold text-base mb-2">Categorías destacadas</h3>
         <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs">
-          ${categoriasDestacadas
-      .map(
-        (cat) => {
-          const emoji = obtenerEmojiCategoria(cat.nombre);
-          return `
-                <button class="bg-white rounded-lg shadow-sm px-2 py-3 flex flex-col items-center justify-center hover:shadow-md"
-                        data-ir-categoria="${cat.id}">
-                  <div class="text-2xl mb-1">${emoji}</div>
-                  <span class="text-center">${cat.nombre}</span>
-                </button>`;
-        }
-      )
-      .join('')}
+          ${categoriasDestacadas.map((cat) => {
+    const emoji = obtenerEmojiCategoria(cat.nombre);
+    return `
+              <button class="bg-white rounded-lg shadow-sm px-2 py-3 flex flex-col items-center justify-center hover:shadow-md"
+                      data-ir-categoria="${cat.id}">
+                <div class="text-2xl mb-1">${emoji}</div>
+                <span class="text-center">${cat.nombre}</span>
+              </button>`;
+  }).join('')}
         </div>
       </section>
 
-      <!-- Temporadas activas -->
       <section>
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold text-base">Temporadas y promociones</h3>
           <button id="boton-ver-todas-temporadas" class="text-xs text-chapinAzul hover:text-chapinNaranja">Ver todas</button>
         </div>
         <div class="flex gap-3 overflow-x-auto pb-1 text-xs">
-          ${temporadasActivas
-      .map(
-        (t) => `
+          ${temporadasActivas.map((t) => `
             <div class="min-w-[180px] bg-white rounded-lg shadow-sm px-3 py-2 border border-chapinNaranja/30">
               <div class="flex items-center justify-between mb-1">
                 <span class="font-semibold text-chapinAzul">${t.nombre}</span>
@@ -558,12 +641,10 @@ function vistaHome() {
               <p class="text-slate-600 line-clamp-2 mb-1">${t.descripcion}</p>
               <p class="text-[11px] text-slate-500">Del ${t.fechaInicio} al ${t.fechaFin}</p>
             </div>`
-      )
-      .join('')}
+  ).join('')}
         </div>
       </section>
 
-      <!-- Productos recomendados -->
       <section>
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold text-base">Productos recomendados</h3>
@@ -616,17 +697,13 @@ function gridProductos(listaProductos, opciones = {}) {
 
   return `
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
-      ${productosPagina
-      .map((p) => {
-        // Validación robusta del precio
-        const precio = p.precio !== undefined && p.precio !== null ? Number(p.precio) : 0;
-        const precioFormateado = precio.toFixed(2);
-        
-        const promo = p.temporadaIds && Array.isArray(p.temporadaIds) && p.temporadaIds.length > 0;
-        
-        const img = obtenerImagenProducto(p);
+      ${productosPagina.map((p) => {
+    const precio = p.precio !== undefined && p.precio !== null ? Number(p.precio) : 0;
+    const precioFormateado = precio.toFixed(2);
+    const promo = p.temporadaIds && Array.isArray(p.temporadaIds) && p.temporadaIds.length > 0;
+    const img = obtenerImagenProducto(p);
 
-        return `
+    return `
           <div class="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
             <button data-ver-producto="${p.id}" class="relative w-full pb-[100%] overflow-hidden">
               <img src="${img}" alt="${p.nombre || 'Producto'}" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'" />
@@ -642,11 +719,9 @@ function gridProductos(listaProductos, opciones = {}) {
               </button>
             </div>
           </div>`;
-      })
-      .join('')}
+  }).join('')}
     </div>
-    ${mostrarPaginacion
-      ? `
+    ${mostrarPaginacion ? `
       <div class="flex items-center justify-center gap-2 mt-3 text-xs">
         <button class="px-2 py-1 border rounded-full ${pagina <= 1 ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
                 data-pagina="${pagina - 1}" ${pagina <= 1 ? 'disabled' : ''}>
@@ -657,8 +732,7 @@ function gridProductos(listaProductos, opciones = {}) {
                 data-pagina="${pagina + 1}" ${pagina >= totalPaginas ? 'disabled' : ''}>
           ▶
         </button>
-      </div>`
-      : ''
+      </div>` : ''
     }
   `;
 }
@@ -715,12 +789,10 @@ function vistaDetalleProducto(idProducto) {
   }
 
   const promo = producto.temporadaIds && producto.temporadaIds.length > 0;
-  const temporadaNombre =
-    promo && producto.temporadaIds.length
-      ? (estadoApp.temporadas.find((t) => t.id === producto.temporadaIds[0]) || {}).nombre
-      : null;
+  const temporadaNombre = promo && producto.temporadaIds.length
+    ? (estadoApp.temporadas.find((t) => t.id === producto.temporadaIds[0]) || {}).nombre
+    : null;
 
-    // Asegurar que las imágenes existan
   let imagenes = [];
   if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0) {
     imagenes = producto.imagenes;
@@ -729,39 +801,31 @@ function vistaDetalleProducto(idProducto) {
   } else if (producto.IMAGENES && typeof producto.IMAGENES === 'string' && producto.IMAGENES.trim() !== '') {
     imagenes = [producto.IMAGENES];
   } else {
-    // No hay imagen en la BD, dejar array vacío
     imagenes = [];
   }
-  // Si no hay imágenes, mostrar un div vacío o un mensaje
+
   const tieneImagenes = imagenes.length > 0 && imagenes[0];
   const imagenPrincipal = tieneImagenes ? imagenes[0] : '';
 
   return `
     <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <!-- Carrusel simple -->
         <div class="relative w-full pb-[100%] bg-white rounded-lg overflow-hidden shadow-sm mb-2">
           <img id="detalle-imagen-principal" src="${imagenPrincipal}" alt="${producto.nombre}" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'" />
         </div>
         <div class="flex gap-2 overflow-x-auto pb-1">
-          ${imagenes
-      .map(
-        (img, indice) => `
+          ${imagenes.map((img, indice) => `
             <button data-miniatura-index="${indice}" class="relative w-16 h-16 rounded-md overflow-hidden border ${indice === 0 ? 'border-chapinNaranja' : 'border-transparent'}">
               <img src="${img}" alt="Imagen ${indice + 1}" class="w-full h-full object-cover" />
             </button>`
-      )
-      .join('')}
+  ).join('')}
         </div>
       </div>
       <div class="space-y-3 text-sm">
         <h1 class="text-base sm:text-lg font-semibold">${producto.nombre}</h1>
         <div class="flex items-center gap-2">
           <div class="text-2xl font-bold text-chapinAzul">Q${producto.precio.toFixed(2)}</div>
-          ${promo
-      ? `<span class="text-xs bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Promoción ${temporadaNombre ? ' - ' + temporadaNombre : ''}</span>`
-      : ''
-    }
+          ${promo ? `<span class="text-xs bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Promoción ${temporadaNombre ? ' - ' + temporadaNombre : ''}</span>` : ''}
         </div>
         <p class="text-slate-700">${producto.descripcion}</p>
         <p class="text-xs text-slate-500">Stock disponible: ${producto.stock}</p>
@@ -840,76 +904,175 @@ function configurarEventosVistaPromociones() {
   configurarEventosBotonesAgregarCarrito();
 }
 
+// Función EN app.js - NO REQUIERE CAMBIOS para la solicitud actual
 function vistaCarritoCompleto() {
-  if (!estadoApp.carrito.length) {
+  // ... código existente hasta la parte de generar filas ...
+  let itemsValidos = 0;
+  let totalGeneral = 0;
+  let subtotalSeleccionados = 0;
+
+  if (!estadoApp.carrito || estadoApp.carrito.length === 0) {
     return `
-      <section class="text-sm">
-        <h1 class="text-base sm:text-lg font-semibold mb-2">Tu carrito de compras</h1>
-        <p>Tu carrito está vacío.</p>
-      </section>
+      <div class="text-center py-12">
+        <p class="text-slate-500 text-sm">Tu carrito está vacío. ¡Agrega productos para continuar!</p>
+        <button onclick="window.location.hash='#/categorias'" class="mt-3 bg-chapinAzul text-white px-6 py-2 rounded-full text-sm">
+          Ver productos
+        </button>
+      </div>
     `;
   }
 
-  const productosPorId = new Map(estadoApp.productos.map((p) => [p.id, p]));
-  let subtotalSeleccionados = 0;
-
   const filas = estadoApp.carrito
     .map((item) => {
-      const producto = productosPorId.get(item.productoId);
+      const producto = item.producto;
       if (!producto) return '';
-      const total = producto.precio * item.cantidad;
-      if (item.seleccionado) subtotalSeleccionados += total;
+      itemsValidos++;
+      const subtotalProducto = producto.precio * item.cantidad;
+      totalGeneral += subtotalProducto;
+      if (item.seleccionado) subtotalSeleccionados += subtotalProducto;
+
+      // OBTENER LA IMAGEN CORRECTAMENTE
+      let imagenUrl = '';
+
+      // Priorizar product.imagen (que es la que seteamos en el backend)
+      if (producto.imagen && typeof producto.imagen === 'string' && producto.imagen.trim() !== '') {
+        imagenUrl = producto.imagen.trim();
+      }
+      // Si no, buscar en imagenes[0]
+      else if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0) {
+        imagenUrl = producto.imagenes[0];
+      }
+      // Si no, usar la función obtenerImagenProducto
+      else {
+        imagenUrl = obtenerImagenProducto(producto);
+      }
+
+      // Validar que la imagen sea válida
+      const tieneImagenValida = imagenUrl &&
+        imagenUrl !== '' &&
+        imagenUrl !== 'null' &&
+        imagenUrl !== 'undefined' &&
+        (imagenUrl.startsWith('http') || imagenUrl.startsWith('data:') || imagenUrl.startsWith('/'));
+
       return `
-        <div class="flex gap-2 bg-white rounded-lg p-2 shadow-sm">
-          <input type="checkbox" data-carrito-seleccion="${item.productoId}" class="mt-4" ${item.seleccionado ? 'checked' : ''} />
-          <div class="w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
-            <img src="${producto.imagenes && producto.imagenes[0] ? producto.imagenes[0] : ''}" alt="${producto.nombre}" class="w-full h-full object-cover" onerror="this.style.display='none'" />
-          </div>
-          <div class="flex-1 text-xs flex flex-col gap-1">
-            <div class="flex justify-between gap-2">
-              <button data-ver-producto="${producto.id}" class="font-semibold text-left hover:text-chapinNaranja">${producto.nombre}</button>
-              <button data-carrito-eliminar="${producto.id}" class="text-slate-400 hover:text-red-500">&times;</button>
-            </div>
-            <div class="text-chapinAzul font-bold">Q${producto.precio.toFixed(2)}</div>
-            <div class="flex items-center gap-2">
-              <span>Cant.</span>
-              <input type="number" min="1" max="${producto.stock}" value="${item.cantidad}"
-                     data-carrito-cantidad="${producto.id}"
-                     class="w-16 border rounded-md px-2 py-0.5" />
-            </div>
-            <div class="text-[11px] text-slate-500">Total: Q${total.toFixed(2)}</div>
-          </div>
-        </div>
-      `;
+                <div class="flex gap-3 bg-white rounded-lg p-3 shadow-sm border border-slate-100" data-producto-id="${item.productoId}">
+                    <input type="checkbox" data-carrito-seleccion="${item.productoId}" class="mt-4 w-4 h-4" ${item.seleccionado ? 'checked' : ''} />
+                    <div class="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center">
+                        ${tieneImagenValida ?
+          `<img src="${imagenUrl}" alt="${producto.nombre}" class="w-full h-full object-cover" 
+                                  onerror="this.onerror=null; this.src='https://via.placeholder.com/300x300?text=Sin+Imagen';" />` :
+          `<div class="w-full h-full flex items-center justify-center text-slate-400 text-2xl">📷</div>`
+        }
+                    </div>
+                    <div class="flex-1">
+                        <button data-ver-producto="${producto.id}" class="font-medium text-sm hover:text-chapinNaranja text-left">
+                            ${producto.nombre}
+                        </button>
+                        <div class="text-chapinAzul font-bold my-1">Q${producto.precio.toFixed(2)}</div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button data-carrito-decrementar="${item.productoId}" 
+                                    class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition"
+                                    ${item.cantidad <= 1 ? 'disabled' : ''}>-</button>
+                            <input type="number" value="${item.cantidad}" min="1" max="${producto.stock}"
+                                   data-carrito-cantidad="${item.productoId}" class="w-12 text-center border rounded-md text-sm" />
+                            <button data-carrito-incrementar="${item.productoId}"
+                                    class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition"
+                                    ${item.cantidad >= producto.stock ? 'disabled' : ''}>+</button>
+                            <button data-carrito-eliminar="${item.productoId}" 
+                                    class="ml-auto text-red-500 hover:text-red-700 text-xs">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                    <div class="text-right font-semibold text-chapinAzul whitespace-nowrap" id="subtotal-producto-${item.productoId}">
+                        Q${subtotalProducto.toFixed(2)}
+                    </div>
+                </div>
+            `;
     })
+    .filter(row => row !== '')
     .join('');
 
+  const envio = 25; // Costo fijo de envío
+  const totalSeleccionadosConEnvio = subtotalSeleccionados + (subtotalSeleccionados > 0 ? envio : 0);
+
   return `
-    <section class="space-y-3 text-sm">
-      <h1 class="text-base sm:text-lg font-semibold">Tu carrito de compras</h1>
-      <p class="text-xs text-slate-600">Puedes seleccionar qué productos deseas facturar ahora. Los demás quedarán guardados para más tarde.</p>
-      <div class="space-y-2">
-        ${filas}
-      </div>
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-slate-200 pt-3">
-        <div class="text-xs text-slate-600">
-          <p>Productos en carrito: ${estadoApp.carrito.length}</p>
-          <p>Subtotal seleccionado: <span class="font-bold text-chapinAzul">Q${subtotalSeleccionados.toFixed(2)}</span></p>
+    <div class="space-y-4">
+      <h1 class="text-xl font-bold">Mi Carrito</h1>
+      
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="hidden md:grid grid-cols-[40px,80px,1fr,auto] gap-3 p-3 bg-chapinAzul text-white text-xs font-medium">
+          <div></div>
+          <div>Producto</div>
+          <div>Descripción</div>
+          <div>Subtotal</div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button id="carrito-vaciar-seleccionados" class="border border-slate-300 rounded-full px-3 py-1 text-xs hover:bg-slate-100">
-            Eliminar seleccionados
-          </button>
-          <button id="carrito-vaciar-todo" class="border border-red-400 text-red-500 rounded-full px-3 py-1 text-xs hover:bg-red-50">
-            Vaciar carrito
-          </button>
-          <button id="carrito-ir-pagar" class="bg-chapinNaranja text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:bg-orange-500">
-            Procesar compra seleccionada
-          </button>
+        
+        <div class="divide-y divide-slate-100">
+          ${filas}
         </div>
       </div>
-    </section>
+      
+      <div class="bg-white rounded-lg shadow-sm p-4 space-y-3">
+        <div class="flex justify-between text-sm">
+          <span>Subtotal (${itemsValidos} productos):</span>
+          <span id="total-productos" class="font-semibold">${itemsValidos}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span>Subtotal seleccionados:</span>
+          <span id="subtotal-seleccionado" class="font-semibold text-chapinAzul">Q${subtotalSeleccionados.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span>Envío (zona metropolitana):</span>
+          <span class="text-chapinNaranja">Q${envio.toFixed(2)}</span>
+        </div>
+        <div class="flex justify-between text-lg font-bold border-t pt-2">
+          <span>Total a pagar:</span>
+          <span id="total-general-carrito" class="text-chapinAzul">Q${totalSeleccionadosConEnvio.toFixed(2)}</span>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-3 pt-2">
+          <button id="carrito-vaciar-seleccionados" class="flex-1 border border-red-300 text-red-600 py-2 rounded-full text-sm hover:bg-red-50">
+            Vaciar seleccionados
+          </button>
+          <button id="carrito-vaciar-todo" class="flex-1 border border-red-300 text-red-600 py-2 rounded-full text-sm hover:bg-red-50">
+            Vaciar todo
+          </button>
+          <button id="carrito-ir-pagar" class="flex-1 bg-chapinNaranja text-white py-2 rounded-full text-sm font-semibold hover:bg-orange-500">
+            Proceder al pago
+          </button>
+        </div>
+      </div>
+    </div>
   `;
+}
+
+function actualizarValoresCarritoEnTiempoReal() {
+  if (!estadoApp.carrito || !estadoApp.carrito.length) return;
+
+  let subtotalSeleccionados = 0;
+  let totalGeneral = 0;
+  let itemsValidos = 0;
+
+  estadoApp.carrito.forEach((item) => {
+    const producto = item.producto;
+    if (!producto) return;
+    itemsValidos++;
+    const subtotalProducto = producto.precio * item.cantidad;
+    totalGeneral += subtotalProducto;
+    if (item.seleccionado) subtotalSeleccionados += subtotalProducto;
+
+    const subtotalElem = document.getElementById(`subtotal-producto-${item.productoId}`);
+    if (subtotalElem) {
+      subtotalElem.textContent = `Q${subtotalProducto.toFixed(2)}`;
+    }
+  });
+
+  const totalProductosElem = document.getElementById('total-productos');
+  const subtotalSeleccionadoElem = document.getElementById('subtotal-seleccionado');
+  const totalGeneralElem = document.getElementById('total-general-carrito');
+
+  if (totalProductosElem) totalProductosElem.textContent = itemsValidos;
+  if (subtotalSeleccionadoElem) subtotalSeleccionadoElem.textContent = `Q${subtotalSeleccionados.toFixed(2)}`;
+  if (totalGeneralElem) totalGeneralElem.textContent = `Q${totalGeneral.toFixed(2)}`;
 }
 
 function vistaCheckout() {
@@ -929,7 +1092,6 @@ function vistaCheckout() {
     <section class="max-w-2xl mx-auto space-y-6">
       <h1 class="text-xl font-bold">Finalizar compra</h1>
       
-      <!-- Productos seleccionados -->
       <div class="bg-white rounded-lg p-4">
         <h2 class="font-semibold mb-3">Productos a pagar</h2>
         ${productosSeleccionados.map(item => {
@@ -962,14 +1124,12 @@ function vistaCheckout() {
         </div>
       </div>
 
-      <!-- Dirección -->
       <div class="bg-white rounded-lg p-4">
         <h2 class="font-semibold mb-2">Dirección de envío</h2>
         <input id="direccion-envio" type="text" value="${direccion}" 
                class="w-full border rounded-md px-3 py-2" placeholder="Ingresa tu dirección" />
       </div>
 
-      <!-- Tarjetas -->
       <div class="bg-white rounded-lg p-4">
         <h2 class="font-semibold mb-3">Método de pago</h2>
         <select id="select-tarjeta" class="w-full border rounded-md px-3 py-2 mb-3">
@@ -1062,8 +1222,17 @@ function configurarEventosVistaCarritoCompleto() {
     const inputCantidad = evento.target.closest('[data-carrito-cantidad]');
     if (inputCantidad) {
       const productoId = parseInt(inputCantidad.dataset.carritoCantidad);
-      const cantidad = Math.max(1, parseInt(inputCantidad.value) || 1);
+      let cantidad = parseInt(inputCantidad.value) || 1;
+      const producto = estadoApp.productos.find(p => p.id === productoId);
+      if (producto && cantidad > producto.stock) {
+        cantidad = producto.stock;
+        inputCantidad.value = cantidad;
+        mostrarModal('Stock limitado', `<p class="text-sm">Solo tenemos ${producto.stock} unidades disponibles.</p>`);
+      }
+      cantidad = Math.max(1, cantidad);
       await actualizarCantidadCarrito(productoId, cantidad);
+      actualizarValoresCarritoEnTiempoReal();
+      return;
     }
 
     const inputSel = evento.target.closest('[data-carrito-seleccion]');
@@ -1071,13 +1240,48 @@ function configurarEventosVistaCarritoCompleto() {
       const productoId = parseInt(inputSel.dataset.carritoSeleccion);
       const seleccionado = inputSel.checked;
       await actualizarSeleccionCarrito(productoId, seleccionado);
+      actualizarValoresCarritoEnTiempoReal();
+      return;
     }
   });
 
   contenedor.addEventListener('click', async (evento) => {
+    const btnDecrementar = evento.target.closest('[data-carrito-decrementar]');
+    if (btnDecrementar && !btnDecrementar.disabled) {
+      const productoId = parseInt(btnDecrementar.dataset.carritoDecrementar);
+      const item = estadoApp.carrito.find(i => i.productoId === productoId);
+      if (item && item.cantidad > 1) {
+        await decrementarCantidadCarrito(productoId);
+        actualizarValoresCarritoEnTiempoReal();
+      }
+      return;
+    }
+
+    const btnIncrementar = evento.target.closest('[data-carrito-incrementar]');
+    if (btnIncrementar) {
+      const productoId = parseInt(btnIncrementar.dataset.carritoIncrementar);
+      const item = estadoApp.carrito.find(i => i.productoId === productoId);
+      const producto = estadoApp.productos.find(p => p.id === productoId);
+      if (item && producto && item.cantidad < producto.stock) {
+        const nuevaCantidad = item.cantidad + 1;
+        await actualizarCantidadCarrito(productoId, nuevaCantidad);
+        actualizarValoresCarritoEnTiempoReal();
+      } else if (producto && item && item.cantidad >= producto.stock) {
+        mostrarModal('Stock limitado', `<p class="text-sm">No hay más stock disponible de este producto.</p>`);
+      }
+      return;
+    }
+
     const btnEliminar = evento.target.closest('[data-carrito-eliminar]');
     if (btnEliminar) {
       const productoId = parseInt(btnEliminar.dataset.carritoEliminar);
+      await eliminarDelCarrito(productoId);
+      return;
+    }
+
+    const btnEliminarTodo = evento.target.closest('[data-carrito-eliminar-todo]');
+    if (btnEliminarTodo) {
+      const productoId = parseInt(btnEliminarTodo.dataset.carritoEliminarTodo);
       await eliminarDelCarrito(productoId);
       return;
     }
@@ -1096,25 +1300,56 @@ function configurarEventosVistaCarritoCompleto() {
 
   if (btnVaciarSel) {
     btnVaciarSel.addEventListener('click', async () => {
-      await llamarApi('/public/carrito', {
+      const resp = await llamarApi('/public/carrito', {
         method: 'DELETE',
-        body: JSON.stringify({ usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null, soloSeleccionados: true })
+        body: JSON.stringify({
+          usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
+          soloSeleccionados: true
+        })
       });
-      await restaurarCarritoDesdeApi();
-      renderizarVista();
-      actualizarPanelCarrito();
+
+      if (resp.ok) {
+        let nuevosItems = null;
+        if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+          nuevosItems = resp.datos.items;
+        } else if (resp.datos && Array.isArray(resp.datos)) {
+          nuevosItems = resp.datos;
+        }
+
+        if (nuevosItems) {
+          estadoApp.carrito = nuevosItems;
+        } else {
+          estadoApp.carrito = [];
+        }
+
+        guardarCarritoLocal();
+        actualizarIconoCarrito();
+        actualizarPanelCarrito();
+        renderizarVista();
+      } else {
+        mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo eliminar'}</p>`);
+      }
     });
   }
 
   if (btnVaciarTodo) {
     btnVaciarTodo.addEventListener('click', async () => {
-      await llamarApi('/public/carrito', {
+      const resp = await llamarApi('/public/carrito', {
         method: 'DELETE',
-        body: JSON.stringify({ usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null })
+        body: JSON.stringify({
+          usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null
+        })
       });
-      await restaurarCarritoDesdeApi();
-      renderizarVista();
-      actualizarPanelCarrito();
+
+      if (resp.ok) {
+        estadoApp.carrito = [];
+        guardarCarritoLocal();
+        actualizarIconoCarrito();
+        actualizarPanelCarrito();
+        renderizarVista();
+      } else {
+        mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo vaciar el carrito'}</p>`);
+      }
     });
   }
 
@@ -1228,6 +1463,9 @@ function configurarEventosVistaLogin() {
       estadoApp.usuarioActual = resp.datos;
       guardarSesionEnLocalStorage();
       actualizarTextoUsuario();
+      // --- CORRECCIÓN: forzar sincronización del carrito al iniciar sesión ---
+      await refrescarCarritoCompleto();
+      // --- fin corrección ---
       window.location.hash = '#/';
       mostrarModal('¡Bienvenido!', `<p class="text-sm">${resp.mensaje}</p>`);
     } else {
@@ -1331,7 +1569,6 @@ function vistaPerfil() {
         </button>
       </div>
       
-      <!-- Datos personales -->
       <div class="bg-white rounded-lg p-4">
         <h2 class="font-semibold mb-3">Datos personales</h2>
         <form id="form-perfil">
@@ -1341,7 +1578,6 @@ function vistaPerfil() {
         </form>
       </div>
 
-      <!-- Mis tarjetas -->
       <div class="bg-white rounded-lg p-4">
         <h2 class="font-semibold mb-3">Mis tarjetas guardadas</h2>
         <div id="lista-tarjetas" class="space-y-3">
@@ -1403,7 +1639,6 @@ function configurarEventosVistaPerfil() {
     });
   }
 
-  // Eliminar tarjeta
   document.querySelectorAll('[data-eliminar-tarjeta]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tarjetaId = parseInt(btn.dataset.eliminarTarjeta);
@@ -1431,15 +1666,13 @@ function vistaAdmin() {
   const arbolCategoriasHTML = construirArbolCategoriasHTML();
 
   const temporadas = estadoApp.temporadas
-    .map(
-      (t) => `
+    .map((t) => `
       <tr class="text-xs">
         <td class="border px-2 py-1">${t.nombre}</td>
         <td class="border px-2 py-1">${t.fechaInicio}</td>
         <td class="border px-2 py-1">${t.fechaFin}</td>
       </tr>
-    `
-    )
+    `)
     .join('');
 
   return `
@@ -1448,7 +1681,6 @@ function vistaAdmin() {
       <p class="text-xs text-slate-600">Gestión básica de categorías, productos y temporadas.</p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-        <!-- CRUD Categorías -->
         <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
           <h2 class="font-semibold mb-1">Categorías y subcategorías</h2>
           <div class="max-h-52 overflow-y-auto border rounded-md p-2 scrollbar-delgada text-[11px]">
@@ -1463,16 +1695,13 @@ function vistaAdmin() {
               <label class="block mb-1">Categoría padre (opcional)</label>
               <select name="padreId" class="w-full border rounded-md px-2 py-1">
                 <option value="">Ninguna (nivel raíz)</option>
-                ${estadoApp.categorias
-      .map((c) => `<option value="${c.id}">${c.nombre}</option>`)
-      .join('')}
+                ${estadoApp.categorias.map((c) => `<option value="${c.id}">${c.nombre}</option>`).join('')}
               </select>
             </div>
             <button class="bg-chapinAzul text-white rounded-full px-3 py-1 mt-1 font-semibold text-xs">Agregar categoría</button>
           </form>
         </div>
 
-        <!-- Agregar producto -->
         <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
           <h2 class="font-semibold mb-1">Agregar producto</h2>
           <form id="formulario-producto" class="space-y-1 text-[11px]">
@@ -1495,22 +1724,17 @@ function vistaAdmin() {
               </div>
             </div>
             
-            <!-- Campo de Categorías -->
             <div>
               <label class="block mb-1">Categorías (puedes elegir varias)</label>
               <select name="categoriaIds" multiple size="4" class="w-full border rounded-md px-2 py-1">
-                ${estadoApp.categorias
-      .map((c) => `<option value="${c.id}">${c.nombre}</option>`)
-      .join('')}
+                ${estadoApp.categorias.map((c) => `<option value="${c.id}">${c.nombre}</option>`).join('')}
               </select>
             </div>
 
-            <!-- NUEVO CAMPO: Temporadas / Promociones -->
             <div>
               <label class="block mb-1">Temporadas / Promociones (mantén Ctrl o Cmd para seleccionar varias)</label>
               <select id="select-temporadas-producto" name="temporadaIds" multiple size="4" 
                       class="w-full border rounded-md px-2 py-1">
-                <!-- Se llena automáticamente con JavaScript -->
               </select>
             </div>
 
@@ -1524,7 +1748,6 @@ function vistaAdmin() {
           </form>
         </div>
 
-        <!-- Temporadas -->
         <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
           <h2 class="font-semibold mb-1">Temporadas / promociones</h2>
           <table class="w-full border-collapse text-[11px]">
@@ -1562,7 +1785,6 @@ function vistaAdmin() {
           </form>
         </div>
 
-        <!-- Carga masiva -->
         <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
           <h2 class="font-semibold mb-1">Carga masiva de productos (mock CSV)</h2>
           <p class="text-[11px] text-slate-600">Formato: <code>nombre;precio</code> por línea.</p>
@@ -1585,13 +1807,10 @@ function construirArbolCategoriasHTML() {
   });
 
   const construirLista = (padreId, nivel) => {
-    // Obtener los hijos de la categoría actual
     const hijos = mapaHijos.get(padreId === null ? 'raiz' : padreId) || [];
-    
-    // Si no hay hijos, no renderizar nada
+
     if (!hijos.length) return '';
-    
-    // Mapear cada hijo y construir su HTML, incluyendo sus propios hijos recursivamente
+
     let html = `<ul class="ml-${nivel * 3}">`;
     for (const hijo of hijos) {
       html += `
@@ -1600,7 +1819,6 @@ function construirArbolCategoriasHTML() {
             ${'— '.repeat(nivel)}${hijo.nombre}
           </button>
         </li>`;
-      // Llamada recursiva CORRECTA: fuera del string template
       html += construirLista(hijo.id, nivel + 1);
     }
     html += `</ul>`;
@@ -1778,29 +1996,25 @@ function vistaTemporadas() {
       <h1 class="text-base sm:text-lg font-semibold">Temporadas y promociones</h1>
       <p class="text-xs text-slate-600">Descubre campañas activas y productos destacados en cada temporada.</p>
       <div class="space-y-3">
-        ${estadoApp.temporadas
-      .map((t) => {
-        const productosTemporada = estadoApp.productos.filter((p) => p.temporadaIds && p.temporadaIds.includes(t.id));
-        return `
-              <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h2 class="font-semibold text-sm">${t.nombre}</h2>
-                    <p class="text-[11px] text-slate-500">Del ${t.fechaInicio} al ${t.fechaFin}</p>
-                  </div>
-                  <span class="text-[11px] bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Activa</span>
+        ${estadoApp.temporadas.map((t) => {
+    const productosTemporada = estadoApp.productos.filter((p) => p.temporadaIds && p.temporadaIds.includes(t.id));
+    return `
+            <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="font-semibold text-sm">${t.nombre}</h2>
+                  <p class="text-[11px] text-slate-500">Del ${t.fechaInicio} al ${t.fechaFin}</p>
                 </div>
-                <p class="text-xs text-slate-700">${t.descripcion}</p>
-                ${productosTemporada.length
-            ? `<div class="mt-2">
-                      ${gridProductos(productosTemporada.slice(0, 8))}
-                    </div>`
-            : '<p class="text-[11px] text-slate-500 mt-1">Aún no hay productos asociados a esta temporada.</p>'
-          }
+                <span class="text-[11px] bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Activa</span>
               </div>
-            `;
-      })
-      .join('')}
+              <p class="text-xs text-slate-700">${t.descripcion}</p>
+              ${productosTemporada.length
+        ? `<div class="mt-2">${gridProductos(productosTemporada.slice(0, 8))}</div>`
+        : '<p class="text-[11px] text-slate-500 mt-1">Aún no hay productos asociados a esta temporada.</p>'
+      }
+            </div>
+          `;
+  }).join('')}
       </div>
     </section>
   `;
@@ -1820,15 +2034,36 @@ async function agregarAlCarrito(productoId, cantidad) {
         cantidad
       })
     });
+
     if (resp.ok) {
-      estadoApp.carrito = resp.datos;
-      guardarCarritoLocal();
+      let nuevosItems = null;
+      if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+        nuevosItems = resp.datos.items;
+      } else if (resp.datos && Array.isArray(resp.datos)) {
+        nuevosItems = resp.datos;
+      }
+
+      if (nuevosItems) {
+        estadoApp.carrito = nuevosItems;
+        guardarCarritoLocal();
+      } else {
+        await sincronizarCarritoDesdeApi();
+      }
+
+      abrirPanelCarrito();
       actualizarIconoCarrito();
       actualizarPanelCarrito();
-      abrirPanelCarrito();
+
+      const producto = estadoApp.productos.find(p => p.id === productoId);
+      if (producto) {
+        mostrarModal('Producto agregado', `<p class="text-sm">${producto.nombre} (x${cantidad}) añadido al carrito.</p>`);
+      }
+    } else {
+      mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo agregar el producto'}</p>`);
     }
   } catch (e) {
     console.error('Error agregando al carrito', e);
+    mostrarModal('Error', '<p class="text-sm">No se pudo conectar con el servidor.</p>');
   }
 }
 
@@ -1842,14 +2077,81 @@ async function actualizarCantidadCarrito(productoId, cantidad) {
         cantidad
       })
     });
+
     if (resp.ok) {
-      estadoApp.carrito = resp.datos;
+      let nuevosItems = null;
+      if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+        nuevosItems = resp.datos.items;
+      } else if (resp.datos && Array.isArray(resp.datos)) {
+        nuevosItems = resp.datos;
+      }
+
+      if (nuevosItems) {
+        estadoApp.carrito = nuevosItems;
+      } else {
+        await sincronizarCarritoDesdeApi();
+      }
+
       guardarCarritoLocal();
+      actualizarIconoCarrito();
       actualizarPanelCarrito();
-      renderizarVista();
+
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
+    } else {
+      mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'Stock insuficiente'}</p>`);
+      await sincronizarCarritoDesdeApi();
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
     }
   } catch (e) {
     console.error('Error actualizando cantidad', e);
+    mostrarModal('Error', '<p class="text-sm">No se pudo actualizar la cantidad.</p>');
+  }
+}
+
+async function decrementarCantidadCarrito(productoId) {
+  try {
+    const resp = await llamarApi(`/public/carrito/decrementar/${productoId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null
+      })
+    });
+
+    if (resp.ok) {
+      let nuevosItems = null;
+      if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+        nuevosItems = resp.datos.items;
+      } else if (resp.datos && Array.isArray(resp.datos)) {
+        nuevosItems = resp.datos;
+      }
+
+      if (nuevosItems) {
+        estadoApp.carrito = nuevosItems;
+      } else {
+        await sincronizarCarritoDesdeApi();
+      }
+
+      guardarCarritoLocal();
+      actualizarIconoCarrito();
+      actualizarPanelCarrito();
+
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
+    } else {
+      mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo disminuir la cantidad'}</p>`);
+      await sincronizarCarritoDesdeApi();
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
+    }
+  } catch (e) {
+    console.error('Error decrementando cantidad', e);
+    mostrarModal('Error', '<p class="text-sm">No se pudo disminuir la cantidad.</p>');
   }
 }
 
@@ -1863,10 +2165,27 @@ async function actualizarSeleccionCarrito(productoId, seleccionado) {
         seleccionado
       })
     });
+
     if (resp.ok) {
-      estadoApp.carrito = resp.datos;
+      let nuevosItems = null;
+      if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+        nuevosItems = resp.datos.items;
+      } else if (resp.datos && Array.isArray(resp.datos)) {
+        nuevosItems = resp.datos;
+      }
+
+      if (nuevosItems) {
+        estadoApp.carrito = nuevosItems;
+      } else {
+        await sincronizarCarritoDesdeApi();
+      }
+
       guardarCarritoLocal();
       actualizarPanelCarrito();
+
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
     }
   } catch (e) {
     console.error('Error actualizando selección', e);
@@ -1877,131 +2196,239 @@ async function eliminarDelCarrito(productoId) {
   try {
     const resp = await llamarApi('/public/carrito', {
       method: 'DELETE',
-      body: JSON.stringify({ usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null, productoId })
+      body: JSON.stringify({
+        usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
+        productoId
+      })
     });
+
     if (resp.ok) {
-      estadoApp.carrito = resp.datos;
+      let nuevosItems = null;
+      if (resp.datos && resp.datos.items && Array.isArray(resp.datos.items)) {
+        nuevosItems = resp.datos.items;
+      } else if (resp.datos && Array.isArray(resp.datos)) {
+        nuevosItems = resp.datos;
+      } else if (resp.datos && resp.datos.data && Array.isArray(resp.datos.data)) {
+        nuevosItems = resp.datos.data;
+      }
+
+      if (nuevosItems !== null) {
+        estadoApp.carrito = nuevosItems;
+      } else if (resp.datos && resp.datos.carrito && resp.datos.carrito.items) {
+        estadoApp.carrito = resp.datos.carrito.items;
+      } else {
+        await sincronizarCarritoDesdeApi();
+      }
+
       guardarCarritoLocal();
-      actualizarPanelCarrito();
       actualizarIconoCarrito();
-      renderizarVista();
+      actualizarPanelCarrito();
+
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();
+      }
+
+      const botonesQuitar = document.querySelectorAll('[data-eliminar-carrito-panel]');
+      botonesQuitar.forEach(btn => {
+        const nuevoBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(nuevoBtn, btn);
+        nuevoBtn.addEventListener('click', async () => {
+          const id = parseInt(nuevoBtn.dataset.eliminarCarritoPanel);
+          await eliminarDelCarrito(id);
+        });
+      });
+
+    } else {
+      mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo eliminar el producto'}</p>`);
     }
   } catch (e) {
     console.error('Error eliminando del carrito', e);
+    mostrarModal('Error', '<p class="text-sm">No se pudo conectar con el servidor.</p>');
   }
 }
 
 function actualizarIconoCarrito() {
   const contador = document.getElementById('contador-carrito');
-  if (!contador) return;
-  const total = estadoApp.carrito.reduce((sum, i) => sum + i.cantidad, 0);
-  contador.textContent = total;
+  const contadorFlotante = document.getElementById('contador-carrito-flotante');
+
+  const total = estadoApp.carrito && estadoApp.carrito.length
+    ? estadoApp.carrito.reduce((sum, item) => sum + (item.cantidad || 0), 0)
+    : 0;
+
+  if (contador) contador.textContent = total;
+  if (contadorFlotante) contadorFlotante.textContent = total;
 }
+
+// ========== FUNCIONES PARA EL CARRITO - VERSIÓN UNIFICADA ==========
 
 function actualizarPanelCarrito() {
   const contenedor = document.getElementById('lista-carrito-panel');
   const subtotalElem = document.getElementById('subtotal-carrito-panel');
-  if (!contenedor || !subtotalElem) return;
 
-  if (!estadoApp.carrito.length) {
-    contenedor.innerHTML = '<p class="text-xs text-slate-500">Tu carrito está vacío.</p>';
-    subtotalElem.textContent = 'Q0.00';
+  if (!contenedor) return;
+
+  if (!estadoApp.carrito || !estadoApp.carrito.length) {
+    const mensajeVacio = `
+      <div class="carrito-vacio-mensaje">
+        <img src="https://cdn-icons-png.flaticon.com/512/5993/5993337.png" alt="Carrito vacío" class="opacity-40 icono-carrito-vacio">
+        <p class="text-slate-500 font-medium">Tu carrito está vacío</p>
+        <p class="text-slate-400 text-[11px]">Agrega productos y comienza a comprar</p>
+      </div>
+    `;
+    contenedor.innerHTML = mensajeVacio;
+    if (subtotalElem) subtotalElem.textContent = 'Q0.00';
     return;
   }
 
-  const productosPorId = new Map(estadoApp.productos.map((p) => [p.id, p]));
   let subtotal = 0;
-
-  contenedor.innerHTML = estadoApp.carrito
+  const itemsHTML = estadoApp.carrito
     .map((item) => {
-      const producto = productosPorId.get(item.productoId);
+      const producto = item.producto;
       if (!producto) return '';
-      const total = producto.precio * item.cantidad;
-      subtotal += total;
+
+      const subtotalItem = producto.precio * item.cantidad;
+      subtotal += subtotalItem;
+
+      let imagenUrl = '';
+      if (producto.imagen && typeof producto.imagen === 'string' && producto.imagen.trim() !== '') {
+        imagenUrl = producto.imagen.trim();
+      } else if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0) {
+        imagenUrl = producto.imagenes[0];
+      } else {
+        imagenUrl = obtenerImagenProducto(producto);
+      }
+
+      const tieneImagen = imagenUrl && imagenUrl !== '' && imagenUrl !== 'null' &&
+        (imagenUrl.startsWith('http') || imagenUrl.startsWith('data:'));
+
       return `
-        <div class="flex gap-2 bg-slate-50 rounded-md p-2">
-          <div class="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-            <img src="${producto.imagenes[0]}" alt="${producto.nombre}" class="w-full h-full object-cover" />
+        <div class="flex gap-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
+          <div class="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-white flex items-center justify-center">
+            ${tieneImagen ?
+          `<img src="${imagenUrl}" alt="${producto.nombre}" class="w-full h-full object-cover" 
+              onerror="this.onerror=null; this.src='https://via.placeholder.com/300x300?text=Error';" />` :
+          `<div class="w-full h-full flex items-center justify-center text-slate-400 text-2xl">📷</div>`
+        }
           </div>
-          <div class="flex-1 text-[11px]">
-            <p class="line-clamp-2">${producto.nombre}</p>
-            <p class="font-semibold text-chapinAzul">Q${producto.precio.toFixed(2)}</p>
-            <div class="flex items-center justify-between mt-1">
-              <span class="text-slate-500">Cant. ${item.cantidad}</span>
-              <button data-eliminar-carrito-panel="${producto.id}" class="text-red-500 text-xs">Quitar</button>
+          <div class="flex-1 min-w-0">
+            <h4 class="font-medium text-xs truncate">${producto.nombre}</h4>
+            <p class="text-chapinAzul font-semibold text-sm mt-1">Q${producto.precio.toFixed(2)}</p>
+            <div class="flex items-center justify-between mt-2">
+              <div class="cantidad-control">
+                <button data-cantidad-decrementar="${item.productoId}" 
+                  ${item.cantidad <= 1 ? 'disabled' : ''}
+                  class="text-slate-600 hover:text-chapinAzul">−</button>
+                <input type="number" value="${item.cantidad}" data-cantidad-input="${item.productoId}"
+                  min="1" max="${producto.stock}" class="text-xs" />
+                <button data-cantidad-incrementar="${item.productoId}"
+                  ${item.cantidad >= producto.stock ? 'disabled' : ''}
+                  class="text-slate-600 hover:text-chapinAzul">+</button>
+              </div>
+              <span class="font-bold text-chapinAzul text-sm">Q${subtotalItem.toFixed(2)}</span>
             </div>
+            <button data-eliminar-carrito-panel="${item.productoId}" 
+              class="mt-1 text-xs text-red-400 hover:text-red-600 transition">🗑️ Eliminar</button>
           </div>
         </div>
       `;
     })
     .join('');
 
-  subtotalElem.textContent = `Q${subtotal.toFixed(2)}`;
+  contenedor.innerHTML = itemsHTML;
+  if (subtotalElem) subtotalElem.textContent = `Q${subtotal.toFixed(2)}`;
 
-  contenedor.querySelectorAll('[data-eliminar-carrito-panel]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = parseInt(btn.dataset.eliminarCarritoPanel);
-      await eliminarDelCarrito(id);
-    });
-  });
-
-  actualizarPanelCarritoMovil();
+  configurarEventosCantidadCarrito();
+  configurarEventosEliminarCarrito();
 }
 
-function actualizarPanelCarritoMovil() {
-  const cont = document.getElementById('lista-carrito-movil');
-  const subt = document.getElementById('subtotal-carrito-movil');
-  if (!cont || !subt) return;
-  if (!estadoApp.carrito.length) {
-    cont.innerHTML = '<p class="text-xs text-slate-500">Tu carrito está vacío.</p>';
-    subt.textContent = 'Q0.00';
-    return;
+function configurarEventosCantidadCarrito() {
+  document.querySelectorAll('[data-cantidad-incrementar]').forEach(btn => {
+    btn.removeEventListener('click', manejarIncremento);
+    btn.addEventListener('click', manejarIncremento);
+  });
+
+  document.querySelectorAll('[data-cantidad-decrementar]').forEach(btn => {
+    btn.removeEventListener('click', manejarDecremento);
+    btn.addEventListener('click', manejarDecremento);
+  });
+
+  document.querySelectorAll('[data-cantidad-input]').forEach(input => {
+    input.removeEventListener('change', manejarCambioCantidad);
+    input.addEventListener('change', manejarCambioCantidad);
+  });
+}
+
+async function manejarIncremento(e) {
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  const productoId = parseInt(btn.dataset.cantidadIncrementar);
+  const item = estadoApp.carrito.find(i => i.productoId === productoId);
+  const producto = estadoApp.productos.find(p => p.id === productoId);
+
+  if (item && producto && item.cantidad < producto.stock) {
+    const nuevaCantidad = item.cantidad + 1;
+    await actualizarCantidadCarrito(productoId, nuevaCantidad);
+    actualizarPanelCarrito();
+  } else if (producto && item && item.cantidad >= producto.stock) {
+    mostrarModal('Stock limitado',
+      `<p class="text-sm">Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}".</p>`);
+  }
+}
+
+async function manejarDecremento(e) {
+  e.stopPropagation();
+  const btn = e.currentTarget;
+  const productoId = parseInt(btn.dataset.cantidadDecrementar);
+  const item = estadoApp.carrito.find(i => i.productoId === productoId);
+
+  if (item && item.cantidad > 1) {
+    const nuevaCantidad = item.cantidad - 1;
+    await actualizarCantidadCarrito(productoId, nuevaCantidad);
+    actualizarPanelCarrito();
+  }
+}
+
+async function manejarCambioCantidad(e) {
+  const input = e.currentTarget;
+  const productoId = parseInt(input.dataset.cantidadInput);
+  let cantidad = parseInt(input.value) || 1;
+  const producto = estadoApp.productos.find(p => p.id === productoId);
+
+  if (producto && cantidad > producto.stock) {
+    cantidad = producto.stock;
+    input.value = cantidad;
+    mostrarModal('Stock limitado',
+      `<p class="text-sm">Cantidad ajustada a ${producto.stock} unidades (máximo disponible).</p>`);
   }
 
-  const productosPorId = new Map(estadoApp.productos.map((p) => [p.id, p]));
-  let subtotal = 0;
-  cont.innerHTML = estadoApp.carrito.map((item) => {
-    const producto = productosPorId.get(item.productoId);
-    if (!producto) return '';
-    subtotal += producto.precio * item.cantidad;
-    return `
-      <div class="flex gap-2 items-center">
-        <div class="w-12 h-12 rounded-md overflow-hidden">
-          <img src="${producto.imagenes[0]}" alt="${producto.nombre}" class="w-full h-full object-cover" />
-        </div>
-        <div class="flex-1 text-xs">
-          <div class="flex justify-between">
-            <div>
-              <p class="font-semibold">${producto.nombre}</p>
-              <p class="text-[11px] text-slate-500">Cant. ${item.cantidad}</p>
-            </div>
-            <div class="text-chapinAzul font-semibold">Q${(producto.precio * item.cantidad).toFixed(2)}</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  cantidad = Math.max(1, Math.min(cantidad, producto?.stock || 1));
+  if (cantidad !== (estadoApp.carrito.find(i => i.productoId === productoId)?.cantidad || 0)) {
+    await actualizarCantidadCarrito(productoId, cantidad);
+    actualizarPanelCarrito();
+  }
+}
 
-  subt.textContent = `Q${subtotal.toFixed(2)}`;
+function configurarEventosEliminarCarrito() {
+  document.querySelectorAll('[data-eliminar-carrito-panel]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const productoId = parseInt(btn.dataset.eliminarCarritoPanel);
+      await eliminarDelCarrito(productoId);
+    });
+  });
 }
 
 function abrirPanelCarrito() {
   const panel = document.getElementById('panel-carrito');
-  const modalMovil = document.getElementById('modal-carrito-movil');
-  if (!panel || !modalMovil) return;
-  if (window.matchMedia('(min-width: 1024px)').matches) {
+  if (panel) {
     panel.classList.remove('translate-x-full');
-  } else {
-    actualizarPanelCarritoMovil();
-    modalMovil.classList.remove('hidden');
   }
+  actualizarPanelCarrito();
 }
 
 function cerrarPanelCarrito() {
   const panel = document.getElementById('panel-carrito');
-  const modalMovil = document.getElementById('modal-carrito-movil');
   if (panel) panel.classList.add('translate-x-full');
-  if (modalMovil) modalMovil.classList.add('hidden');
 }
 
 function mostrarModal(titulo, contenidoHTML) {
@@ -2029,6 +2456,17 @@ async function cerrarSesion() {
       estadoApp.usuarioActual = null;
       localStorage.removeItem('chapinMarket_usuario');
       actualizarTextoUsuario();
+
+      // --- CORRECCIÓN: desvincular el carrito de la interfaz sin eliminarlo del backend ---
+      estadoApp.carrito = [];                      // limpia la vista actual
+      localStorage.removeItem('chapinMarket_carrito_local'); // evita que una recarga muestre datos viejos
+      actualizarIconoCarrito();                    // badge a 0
+      actualizarPanelCarrito();                    // panel lateral vacío
+      if (estadoApp.vistaActual === 'carrito') {
+        renderizarVista();                         // si está en la vista de carrito, refréscala
+      }
+      // --- fin corrección ---
+
       window.location.hash = '#/';
       mostrarModal('Sesión cerrada', '<p class="text-sm">Has cerrado sesión correctamente.</p>');
     }
@@ -2040,7 +2478,6 @@ async function cerrarSesion() {
 
 function configurarEventosGlobales() {
   const botonLogo = document.getElementById('boton-logo');
-  const botonCarrito = document.getElementById('boton-carrito');
   const cerrarPanel = document.getElementById('cerrar-panel-carrito');
   const botonUsuario = document.getElementById('boton-usuario');
 
@@ -2050,32 +2487,43 @@ function configurarEventosGlobales() {
     });
   }
 
-  if (botonCarrito) {
-    botonCarrito.addEventListener('click', () => {
-      actualizarPanelCarrito();
-      abrirPanelCarrito();
-    });
-  }
-
   if (cerrarPanel) {
     cerrarPanel.addEventListener('click', () => {
       cerrarPanelCarrito();
     });
   }
 
-  const cerrarModalCarritoMovil = document.getElementById('cerrar-modal-carrito-movil');
-  const modalMovil = document.getElementById('modal-carrito-movil');
-  const botonIrCheckoutMovil = document.getElementById('boton-ir-checkout-movil');
-  if (cerrarModalCarritoMovil) {
-    cerrarModalCarritoMovil.addEventListener('click', () => {
-      if (modalMovil) modalMovil.classList.add('hidden');
+  // Botón flotante - ÚNICO punto de acceso al carrito
+  const botonFlotanteCarrito = document.getElementById('boton-flotante-carrito');
+  if (botonFlotanteCarrito) {
+    botonFlotanteCarrito.addEventListener('click', () => {
+      actualizarPanelCarrito();
+      abrirPanelCarrito();
     });
   }
-  if (botonIrCheckoutMovil) {
-    botonIrCheckoutMovil.addEventListener('click', () => {
-      if (modalMovil) modalMovil.classList.add('hidden');
+
+  const btnCheckoutEscritorio = document.getElementById('boton-ir-checkout');
+
+  if (btnCheckoutEscritorio) {
+    btnCheckoutEscritorio.addEventListener('click', () => {
+      cerrarPanelCarrito();
       window.location.hash = '#/checkout';
     });
+  }
+
+  const contadorFlotante = document.getElementById('contador-carrito-flotante');
+  if (contadorFlotante) {
+    const observer = new MutationObserver(() => {
+      const contadorPrincipal = document.getElementById('contador-carrito');
+      if (contadorPrincipal) {
+        contadorFlotante.textContent = contadorPrincipal.textContent;
+      }
+    });
+
+    const contadorPrincipal = document.getElementById('contador-carrito');
+    if (contadorPrincipal) {
+      observer.observe(contadorPrincipal, { characterData: true, subtree: true, childList: true });
+    }
   }
 
   if (botonUsuario) {
@@ -2175,16 +2623,29 @@ function mostrarResultadosBusqueda(texto, resultados) {
   configurarEventosBotonesAgregarCarrito();
 }
 
+// Reemplazar la función iniciarHeroRotativo por una versión animada
 function iniciarHeroRotativo() {
-  const mensajes = document.querySelectorAll('.hero-mensaje');
-  if (!mensajes.length) return;
-  let indice = 0;
-  setInterval(() => {
-    mensajes.forEach((m, i) => {
-      m.classList.toggle('hidden', i !== indice);
+  const slides = document.querySelectorAll('.hero-slide');
+  if (!slides.length) return;
+  let current = 0;
+  const total = slides.length;
+
+  const showSlide = (index) => {
+    slides.forEach((slide, i) => {
+      if (i === index) {
+        slide.classList.remove('hero-hidden');
+        slide.style.position = 'relative';
+      } else {
+        slide.classList.add('hero-hidden');
+        slide.style.position = 'absolute';
+      }
     });
-    indice = (indice + 1) % mensajes.length;
-  }, 4000);
+  };
+
+  setInterval(() => {
+    current = (current + 1) % total;
+    showSlide(current);
+  }, 5000);
 }
 
 function actualizarTextoUsuario() {
@@ -2197,65 +2658,13 @@ function actualizarTextoUsuario() {
   }
 }
 
-// Inicializar hero banner con carrusel
-function initHeroBanner() {
-  const container = document.getElementById('hero-banner-container');
-  if (!container) return;
-  
-  const heroSlides = [
-    {
-      title: 'Envíos a toda <span>Guatemala</span>',
-      subtitle: 'Compra en ChapínMarket y recibe en la puerta de tu casa con nuestra flota propia.',
-      cta: 'Comprar ahora'
-    },
-    {
-      title: 'Promociones de <span>Fiestas Patrias</span>',
-      subtitle: 'Hasta 40% de descuento en productos seleccionados. ¡No te lo pierdas!',
-      cta: 'Ver ofertas'
-    },
-    {
-      title: 'Artesanía <span>Guatemalteca</span>',
-      subtitle: 'Apoya a los artesanos locales con cada compra. Productos únicos y auténticos.',
-      cta: 'Explorar'
-    }
-  ];
-  
-  let currentSlide = 0;
-  
-  function renderSlide(index) {
-    const slide = heroSlides[index];
-    container.innerHTML = `
-      <div class="hero-content">
-        <h1 class="hero-title">${slide.title}</h1>
-        <p class="hero-subtitle">${slide.subtitle}</p>
-        <button class="btn-hero" id="hero-cta">
-          <img src="https://cdn3d.iconscout.com/3d/premium/thumb/camion-3d-icon-png-download-3918064.png" alt="Camión" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />
-          ${slide.cta} →
-        </button>
-      </div>
-      <div class="hero-indicators">
-        ${heroSlides.map((_, i) => `<div class="hero-dot ${i === index ? 'active' : ''}" data-slide="${i}"></div>`).join('')}
-      </div>
-    `;
-    
-    document.getElementById('hero-cta')?.addEventListener('click', () => {
-      window.location.hash = '#/categorias';
-    });
-    
-    document.querySelectorAll('.hero-dot').forEach(dot => {
-      dot.addEventListener('click', (e) => {
-        currentSlide = parseInt(e.target.dataset.slide);
-        renderSlide(currentSlide);
-      });
-    });
+async function refrescarCarritoCompleto() {
+  await sincronizarCarritoDesdeApi();
+  actualizarIconoCarrito();
+  actualizarPanelCarrito();
+  if (estadoApp.vistaActual === 'carrito') {
+    renderizarVista();
   }
-  
-  renderSlide(currentSlide);
-  
-  setInterval(() => {
-    currentSlide = (currentSlide + 1) % heroSlides.length;
-    renderSlide(currentSlide);
-  }, 5000);
 }
 
 window.chapinMarket = {

@@ -1,0 +1,7 @@
+.bg-chapinAzul { background-color: #003366; }
+.bg-chapinAzulClaro { background-color: #005fa3; }
+.bg-chapinNaranja { background-color: #ff8c32; }
+.text-chapinAzul { color: #003366; }
+.text-chapinNaranja { color: #ff8c32; }
+.from-chapinAzul { --tw-gradient-from: #003366; }
+.to-chapinAzulClaro { --tw-gradient-to: #005fa3; }

@@ -1,3 +1,5 @@
+/* styles.css - Versión unificada con un solo carrito lateral */
+
 .scrollbar-delgada::-webkit-scrollbar {
     width: 6px;
 }
@@ -41,5 +43,274 @@
 @keyframes giro {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* ========== ESTILOS PARA EL CARRITO LATERAL ÚNICO ========== */
+.panel-carrito-lateral {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: hidden;
+    width: 380px;
+    max-width: 90vw;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.panel-carrito-lateral:not(.translate-x-full) {
+    transform: translateX(0);
+}
+
+#lista-carrito-panel {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.carrito-vacio-mensaje {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: rgba(100, 116, 139, 0.6);
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 200px;
+}
+
+.carrito-vacio-mensaje img {
+    opacity: 0.5;
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
+    max-height: 48px;
+    object-fit: contain;
+}
+
+.cantidad-control {
+    display: flex;
+    align-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.cantidad-control button {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cantidad-control button:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #003366;
+}
+
+.cantidad-control button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cantidad-control input {
+    width: 40px;
+    text-align: center;
+    border: none;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    padding: 4px;
+    font-size: 0.75rem;
+}
+
+/* Botón flotante - único punto de acceso */
+.boton-flotante-carrito {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 140, 50, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 140, 50, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 140, 50, 0);
+    }
+}
+
+/* ============================================ */
+/* === SECCIÓN COMPRA CON CONFIANZA - ESTRUCTURA CORREGIDA === */
+/* ============================================ */
+
+.confianza-container {
+    background: linear-gradient(to bottom, #ffffff, #f8fafc);
+    border-top: 2px solid #e2e8f0;
+    padding: 16px 16px 20px 16px;
+    margin-top: auto;
+}
+
+.confianza-titulo-seccion {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 14px;
+    text-align: center;
+    letter-spacing: -0.3px;
+}
+
+.confianza-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    transition: background-color 0.2s;
+}
+
+.confianza-item:hover {
+    background-color: #f1f5f9;
+}
+
+.confianza-icono-wrapper {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #eef2ff;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+/* ÍCONO: tamaño fijo 24x24 píxeles */
+.confianza-icono {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    object-fit: contain !important;
+    display: block !important;
+}
+
+.confianza-texto {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.confianza-titulo {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.confianza-subtitulo {
+    font-size: 11px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Responsive: el panel lateral se adapta a móviles y tablets */
+@media (max-width: 1023px) {
+    .panel-carrito-lateral {
+        width: 85vw;
+        max-width: 85vw;
+    }
+}
+
+@media (max-width: 640px) {
+    .panel-carrito-lateral {
+        width: 100vw;
+        max-width: 100vw;
+    }
+}
+
+/* ========== NUEVA PORTADA ========== */
+.hero-slide {
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.hero-slide.hero-hidden {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.hero-container {
+    position: relative;
+    min-height: 280px;
+}
+
+/* Máscara de transparencia para la imagen (izquierda transparente -> derecha opaca) */
+.hero-image-mask {
+    mask-image: linear-gradient(to right, transparent 0%, black 40%, black 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%, black 100%);
+    transition: mask-image 0.3s;
+}
+
+/* Elementos informativos */
+.info-badge {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border-radius: 2rem;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+}
+
+.info-badge:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.info-badge-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive: en móvil los badges se van abajo */
+@media (max-width: 640px) {
+    .hero-badges-container {
+        position: static !important;
+        margin-top: 1.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .hero-badges-container .info-badge {
+        flex: 1 1 auto;
+        min-width: 100px;
     }
 }
