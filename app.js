@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 100);
 
     configurarEventosGlobales();
+    configurarHeaderScroll();  // <-- agregar esta línea
     configurarRouter();
 
     manejarCambioRuta();
@@ -88,6 +89,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (overlay) overlay.classList.add('hidden');
   }
 });
+
+/**
+ * Cierra todos los paneles abiertos: carrito, dropdown categorías, menú móvil.
+ * Si se pasa un panel para exceptuar, no se cierra (se usa al abrir uno específico).
+ */
+function cerrarTodosLosPaneles(excepcion = null) {
+  // Carrito
+  if (excepcion !== 'carrito') {
+    const panelCarrito = document.getElementById('panel-carrito');
+    if (panelCarrito && !panelCarrito.classList.contains('translate-x-full')) {
+      panelCarrito.classList.add('translate-x-full');
+    }
+  }
+
+  // Dropdown categorías desktop
+  if (excepcion !== 'categorias') {
+    const dropdown = document.getElementById('dropdown-categorias');
+    const flecha = document.getElementById('flecha-categorias');
+    if (dropdown) {
+      dropdown.classList.add('hidden');
+      dropdown.classList.remove('dropdown-abierto');
+    }
+    if (flecha) {
+      flecha.classList.remove('rotate-arrow');
+    }
+  }
+
+  // Menú móvil (hamburguesa)
+  if (excepcion !== 'menu-movil') {
+    const menuPanel = document.getElementById('panel-menu-movil');
+    if (menuPanel && menuPanel.classList.contains('menu-abierto')) {
+      menuPanel.classList.remove('menu-abierto');
+    }
+    // También cierra el submenú de categorías dentro del menú móvil
+    const submenuCat = document.getElementById('submenu-categorias-movil');
+    const flechaCatMovil = document.getElementById('flecha-categorias-movil');
+    if (submenuCat) submenuCat.classList.add('hidden');
+    if (flechaCatMovil) flechaCatMovil.classList.remove('rotate-arrow');
+  }
+}
 
 async function cargarDatosIniciales() {
   try {
@@ -163,6 +204,7 @@ async function cargarDatosIniciales() {
 
     enrichProductosConCategorias();
     construirMegaMenu();
+    construirMenuMovilCategorias();
 
     // Si todas las respuestas fallaron, mostrar mensaje amigable
     if (!respCategorias.ok && !respProductos.ok && !respTemporadas.ok) {
@@ -185,11 +227,49 @@ async function restaurarSesionDesdeApi() {
       estadoApp.usuarioActual = resp.datos;
       guardarSesionEnLocalStorage();
       actualizarTextoUsuario();
-    } else {
-      estadoApp.usuarioActual = null;
+      return;
     }
   } catch (e) {
-    estadoApp.usuarioActual = null;
+    console.warn('Fallo /auth/me, intentando recuperar de localStorage', e);
+  }
+
+  // Fallback: recuperar de localStorage
+  const datosLocales = localStorage.getItem('chapinMarket_usuario');
+  if (datosLocales) {
+    try {
+      const usuario = JSON.parse(datosLocales);
+      if (usuario && usuario.id) {
+        estadoApp.usuarioActual = usuario;
+        actualizarTextoUsuario();
+        console.log('Sesión restaurada desde localStorage');
+        // Cargar datos completos en segundo plano
+        cargarPerfilCompletoDesdeLocalStorage();
+        return;
+      }
+    } catch (e) { }
+  }
+  estadoApp.usuarioActual = null;
+}
+
+// Nueva función auxiliar para cargar el perfil completo usando el id de localStorage
+async function cargarPerfilCompletoDesdeLocalStorage() {
+  const uid = estadoApp.usuarioActual?.id;
+  if (!uid) return;
+  const url = `/public/perfil?uid=${uid}`;
+  const resp = await llamarApi(url, { method: 'GET' });
+  if (resp.ok && resp.datos) {
+    estadoApp.usuarioActual = {
+      ...estadoApp.usuarioActual,
+      nombre: resp.datos.nombre,
+      correo: resp.datos.correo,
+      telefono: resp.datos.telefono,
+      direccion: resp.datos.direccion,
+      direcciones: resp.datos.direcciones || [],
+      tarjetas: resp.datos.tarjetas || [],
+      pedidos: resp.datos.pedidos || []
+    };
+    guardarSesionEnLocalStorage();
+    actualizarTextoUsuario();
   }
 }
 
@@ -580,6 +660,44 @@ function construirMegaMenu() {
   });
 }
 
+function construirMenuMovilCategorias() {
+  const contenedor = document.getElementById('submenu-categorias-movil');
+  if (!contenedor) return;
+
+  const raices = estadoApp.categorias.filter(c => c.padreId === null);
+  let html = '';
+  raices.forEach(cat => {
+    const hijos = estadoApp.categorias.filter(c => c.padreId === cat.id);
+    html += `<div class="mb-2">
+      <button class="w-full text-left font-medium text-chapinAzul text-xs hover:text-chapinNaranja py-1" data-ir-categoria="${cat.id}">
+        ${obtenerEmojiCategoria(cat.nombre)} ${cat.nombre}
+      </button>`;
+    if (hijos.length) {
+      html += `<div class="pl-3 space-y-0.5">`;
+      hijos.forEach(hijo => {
+        html += `<button class="block w-full text-left text-[11px] text-slate-600 hover:text-chapinNaranja py-0.5" data-ir-categoria="${hijo.id}">
+          ${hijo.nombre}
+        </button>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  });
+  contenedor.innerHTML = html;
+
+  // Delegación de clics para navegar a categoría
+  contenedor.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-ir-categoria]');
+    if (btn) {
+      const id = parseInt(btn.dataset.irCategoria);
+      if (!isNaN(id)) {
+        cerrarTodosLosPaneles();
+        window.location.hash = `#/categoria/${id}`;
+      }
+    }
+  });
+}
+
 function obtenerHijosCategoria(idPadre) {
   return estadoApp.categorias.filter((c) => c.padreId === idPadre);
 }
@@ -591,26 +709,139 @@ function vistaHome() {
 
   return `
     <section class="space-y-6">
-      <div class="relative rounded-xl overflow-hidden bg-gradient-to-r from-chapinAzul to-chapinAzulClaro text-white p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
-        <div class="flex-1">
-          <div id="hero-mensaje-1" class="hero-mensaje">
-            <h2 class="text-xl sm:text-2xl font-bold mb-1">Envíos a toda Guatemala</h2>
-            <p class="text-sm text-white/80">Compra en ChapínMarket y recibe en la puerta de tu casa.</p>
+      <!-- ========== NUEVA PORTADA REDISEÑADA ========== -->
+      <div class="hero-wrapper relative rounded-2xl overflow-hidden bg-gradient-to-br from-chapinAzul via-[#0a2a4a] to-chapinAzulClaro text-white shadow-2xl shadow-chapinAzul/30">
+        
+        <!-- Contenedor de slides rotativos -->
+        <div class="hero-container relative w-full min-h-[280px] sm:min-h-[320px] md:min-h-[340px] overflow-hidden">
+          
+          <!-- Slide 1: Envíos a toda Guatemala -->
+          <div class="hero-slide absolute inset-0 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-6 md:p-8 transition-all duration-700 ease-in-out"
+               data-slide="0">
+            <div class="flex-1 z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+              <div class="flex-1 space-y-1 sm:space-y-2 text-center sm:text-left">
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
+                  Envíos a toda
+                  <span class="text-chapinNaranja block sm:inline">Guatemala</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-white/80 max-w-md">
+                  Compra en ChapínMarket y recibe en la puerta de tu casa. Cobertura nacional con los mejores tiempos de entrega.
+                </p>
+              </div>
+              <div class="hero-icon-grande flex items-center justify-center">
+                <img src="https://cdn3d.iconscout.com/3d/premium/thumb/camion-3d-icon-png-download-3918064.png" 
+                     alt="Camión de envíos" class="w-full h-full object-contain drop-shadow-lg" />
+              </div>
+            </div>
+            <div class="hero-image-wrapper relative w-full sm:w-[45%] md:w-[50%] h-36 sm:h-48 md:h-56 rounded-xl overflow-hidden flex-shrink-0">
+              <div class="hero-image-mask absolute inset-0 z-10 pointer-events-none"></div>
+              <img src="https://kayakguatemala.com/wp-content/uploads/2024/01/c9fa6cc5-4afe-44b3-af83-44ca556ca995.png" 
+                   alt="Envíos a toda Guatemala" 
+                   class="w-full h-full object-cover"
+                   loading="eager" />
+            </div>
           </div>
-          <div id="hero-mensaje-2" class="hero-mensaje hidden">
-            <h2 class="text-xl sm:text-2xl font-bold mb-1">Promociones de fiestas patrias</h2>
-            <p class="text-sm text-white/80">Aprovecha descuentos en productos con sabor chapín.</p>
+
+          <!-- Slide 2: Promociones de fiestas patrias -->
+          <div class="hero-slide absolute inset-0 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-6 md:p-8 transition-all duration-700 ease-in-out opacity-0 translate-x-8 pointer-events-none"
+               data-slide="1">
+            <div class="flex-1 z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+              <div class="flex-1 space-y-1 sm:space-y-2 text-center sm:text-left">
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
+                  Promociones de
+                  <span class="text-chapinNaranja block sm:inline">Fiestas Patrias</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-white/80 max-w-md">
+                  Aprovecha descuentos especiales en productos con sabor chapín. ¡Celebra Guatemala con las mejores ofertas!
+                </p>
+              </div>
+              <div class="hero-icon-grande flex items-center justify-center">
+                <img src="https://img.freepik.com/3d-models/v2/Q/0/I/R/F/1/Z/Q0IRF1ZR/marimba-icon-poster-1.png" 
+                     alt="Marimba" class="w-full h-full object-contain drop-shadow-lg" />
+              </div>
+            </div>
+            <div class="hero-image-wrapper relative w-full sm:w-[45%] md:w-[50%] h-36 sm:h-48 md:h-56 rounded-xl overflow-hidden flex-shrink-0">
+              <div class="hero-image-mask absolute inset-0 z-10 pointer-events-none"></div>
+              <img src="https://radiotgw.gob.gt/wp-content/uploads/2024/09/Captura-de-pantalla-2024-09-06-113910-1140x570-1-920x425.png" 
+                   alt="Promociones fiestas patrias" 
+                   class="w-full h-full object-cover"
+                   loading="lazy" />
+            </div>
           </div>
-          <div id="hero-mensaje-3" class="hero-mensaje hidden">
-            <h2 class="text-xl sm:text-2xl font-bold mb-1">Tecnología para estudiar</h2>
-            <p class="text-sm text-white/80">Laptops, tablets y más para el regreso a clases.</p>
+
+          <!-- Slide 3: Tecnología para estudiar -->
+          <div class="hero-slide absolute inset-0 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-6 md:p-8 transition-all duration-700 ease-in-out opacity-0 translate-x-8 pointer-events-none"
+               data-slide="2">
+            <div class="flex-1 z-10 flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+              <div class="flex-1 space-y-1 sm:space-y-2 text-center sm:text-left">
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
+                  Tecnología para
+                  <span class="text-chapinNaranja block sm:inline">Estudiar</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-white/80 max-w-md">
+                  Laptops, tablets y más para el regreso a clases. Equípate con la mejor tecnología al mejor precio.
+                </p>
+              </div>
+              <div class="hero-icon-grande flex items-center justify-center">
+                <img src="https://static.vecteezy.com/system/resources/thumbnails/047/588/455/small/cartoon-computer-monitor-with-keyboard-and-mouse-3d-icon-isolated-on-the-transparent-background-png.png" 
+                     alt="Tecnología" class="w-full h-full object-contain drop-shadow-lg" />
+              </div>
+            </div>
+            <div class="hero-image-wrapper relative w-full sm:w-[45%] md:w-[50%] h-36 sm:h-48 md:h-56 rounded-xl overflow-hidden flex-shrink-0">
+              <div class="hero-image-mask absolute inset-0 z-10 pointer-events-none"></div>
+              <img src="https://www.campustraining.es/wp-content/uploads/2025/04/aprender-informatica-desde-cero.jpg.webp" 
+                   alt="Tecnología para estudiar" 
+                   class="w-full h-full object-cover"
+                   loading="lazy" />
+            </div>
           </div>
         </div>
-        <div class="w-28 h-28 sm:w-40 sm:h-40 bg-white/10 rounded-full flex items-center justify-center text-4xl">
-          🛍️
+
+        <!-- Badges informativos (parte inferior del hero, siempre visibles) -->
+        <div class="hero-badges-container relative z-20 flex gap-2 sm:gap-3 justify-center sm:justify-end flex-wrap px-4 pb-3">
+          <div class="info-badge flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/20 hover:bg-white/20 transition-all duration-300 cursor-default">
+            <div class="info-badge-icon w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 flex items-center justify-center p-1 shadow-md">
+              <img src="https://static.vecteezy.com/system/resources/previews/009/590/479/non_2x/3d-parcel-box-delivery-with-trolley-shipping-icon-ecommerce-illustration-free-png.png" 
+                   alt="Envíos" class="w-full h-full object-contain" loading="lazy" />
+            </div>
+            <div class="flex flex-col leading-tight">
+              <span class="text-[10px] sm:text-[11px] font-bold">Envíos Rápidos</span>
+              <span class="text-[9px] sm:text-[10px] text-white/70">a todo el país</span>
+            </div>
+          </div>
+
+          <div class="info-badge flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/20 hover:bg-white/20 transition-all duration-300 cursor-default">
+            <div class="info-badge-icon w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 flex items-center justify-center p-1 shadow-md">
+              <img src="https://cdn3d.iconscout.com/3d/premium/thumb/pago-3d-icon-png-download-11202874.png" 
+                   alt="Pagos" class="w-full h-full object-contain" loading="lazy" />
+            </div>
+            <div class="flex flex-col leading-tight">
+              <span class="text-[10px] sm:text-[11px] font-bold">Pagos Seguros</span>
+              <span class="text-[9px] sm:text-[10px] text-white/70">y protegidos</span>
+            </div>
+          </div>
+
+          <div class="info-badge flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/20 hover:bg-white/20 transition-all duration-300 cursor-default">
+            <div class="info-badge-icon w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 flex items-center justify-center p-1 shadow-md">
+              <img src="https://cdn3d.iconscout.com/3d/premium/thumb/producto-de-calidad-3d-icon-png-download-6508245.png" 
+                   alt="Calidad" class="w-full h-full object-contain" loading="lazy" />
+            </div>
+            <div class="flex flex-col leading-tight">
+              <span class="text-[10px] sm:text-[11px] font-bold">Productos de Calidad</span>
+              <span class="text-[9px] sm:text-[10px] text-white/70">para toda la familia</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Indicadores de slide (dots) -->
+        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+          <button class="hero-dot w-2.5 h-2.5 rounded-full bg-white transition-all duration-300" data-dot="0" aria-label="Slide 1"></button>
+          <button class="hero-dot w-2.5 h-2.5 rounded-full bg-white/40 hover:bg-white/70 transition-all duration-300" data-dot="1" aria-label="Slide 2"></button>
+          <button class="hero-dot w-2.5 h-2.5 rounded-full bg-white/40 hover:bg-white/70 transition-all duration-300" data-dot="2" aria-label="Slide 3"></button>
         </div>
       </div>
 
+      <!-- Sección de categorías destacadas (se mantiene igual) -->
       <section>
         <h3 class="font-semibold text-base mb-2">Categorías destacadas</h3>
         <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs">
@@ -626,6 +857,7 @@ function vistaHome() {
         </div>
       </section>
 
+      <!-- Resto de secciones (temporadas, productos recomendados) se mantienen igual -->
       <section>
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold text-base">Temporadas y promociones</h3>
@@ -1547,107 +1779,828 @@ function vistaPerfil() {
     return '';
   }
 
-  const tarjetasHTML = estadoApp.usuarioActual.tarjetas && estadoApp.usuarioActual.tarjetas.length
-    ? estadoApp.usuarioActual.tarjetas.map(t => `
-        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-md">
-          <div>
-            <span class="font-semibold">${t.tipo} **** ${t.numeroEnmascarado}</span><br>
-            <span class="text-xs text-slate-500">Vence: ${t.vencimiento}</span>
-          </div>
-          <button data-eliminar-tarjeta="${t.id}" class="text-red-500 hover:text-red-700 text-xs">Eliminar</button>
-        </div>
-      `).join('')
-    : '<p class="text-xs text-slate-500">Aún no tienes tarjetas guardadas.</p>';
+  const usuario = estadoApp.usuarioActual;
 
   return `
-    <section class="space-y-6 max-w-2xl mx-auto">
-      <div class="flex justify-between items-center">
-        <h1 class="text-xl font-bold">Mi Perfil</h1>
+    <section class="max-w-4xl mx-auto space-y-6">
+      <!-- Cabecera -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-chapinAzul to-chapinAzulClaro flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+            ${usuario.nombre ? usuario.nombre.charAt(0).toUpperCase() : '👤'}
+          </div>
+          <div>
+            <h1 class="text-xl font-bold">${usuario.nombre || 'Usuario'}</h1>
+            <p class="text-sm text-slate-500">${usuario.correo || ''}</p>
+          </div>
+        </div>
         <button onclick="cerrarSesion()" 
-                class="text-red-500 hover:text-red-600 text-sm font-medium flex items-center gap-1">
+                class="text-red-500 hover:text-red-600 text-sm font-medium flex items-center gap-1 px-4 py-2 border border-red-200 rounded-full hover:bg-red-50 transition">
           <span>🚪</span> Cerrar sesión
         </button>
       </div>
-      
-      <div class="bg-white rounded-lg p-4">
-        <h2 class="font-semibold mb-3">Datos personales</h2>
-        <form id="form-perfil">
-          <input type="text" id="perfil-nombre" value="${estadoApp.usuarioActual.nombre || ''}" class="w-full border rounded-md px-3 py-2 mb-3" />
-          <input type="text" id="perfil-direccion" value="${estadoApp.usuarioActual.direccion || ''}" placeholder="Dirección" class="w-full border rounded-md px-3 py-2" />
-          <button type="submit" class="mt-3 bg-chapinAzul text-white px-6 py-2 rounded-full">Guardar cambios</button>
-        </form>
+
+      <!-- Pestañas mejoradas (responsive) -->
+      <div class="perfil-tabs-container border-b border-slate-200 pb-3 mb-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2" id="perfil-tabs">
+          <button class="perfil-tab perfil-tab-activo px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-center transition-colors"
+                  data-tab="datos">
+            <span class="block sm:inline">👤</span> Datos
+          </button>
+          <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
+                  data-tab="direcciones">
+            <span class="block sm:inline">📍</span> Direcciones
+          </button>
+          <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
+                  data-tab="seguridad">
+            <span class="block sm:inline">🔒</span> Seguridad
+          </button>
+          <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
+                  data-tab="tarjetas">
+            <span class="block sm:inline">💳</span> Tarjetas
+          </button>
+          <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
+                  data-tab="pedidos">
+            <span class="block sm:inline">📦</span> Pedidos
+          </button>
+        </div>
       </div>
 
-      <div class="bg-white rounded-lg p-4">
-        <h2 class="font-semibold mb-3">Mis tarjetas guardadas</h2>
-        <div id="lista-tarjetas" class="space-y-3">
-          ${tarjetasHTML}
-        </div>
-        
-        <div class="mt-6">
-          <h3 class="font-medium mb-2">Agregar nueva tarjeta</h3>
-          <form id="form-nueva-tarjeta">
-            <input id="tarjeta-titular" placeholder="Titular" class="w-full border rounded-md px-3 py-2 mb-2" />
-            <input id="tarjeta-numero" placeholder="Número de tarjeta" class="w-full border rounded-md px-3 py-2 mb-2" />
-            <div class="grid grid-cols-2 gap-3">
-              <input id="tarjeta-vencimiento" placeholder="MM/AA" class="border rounded-md px-3 py-2" />
-              <input id="tarjeta-cvv" placeholder="CVV" class="border rounded-md px-3 py-2" />
-            </div>
-            <button type="submit" class="mt-3 w-full bg-chapinNaranja text-white py-2 rounded-full">Guardar tarjeta</button>
-          </form>
-        </div>
+      <!-- Contenido de pestañas -->
+      <div id="perfil-tab-content" class="bg-white rounded-xl shadow-sm p-6">
+        ${tabDatosPersonales(usuario)}
       </div>
     </section>
   `;
 }
 
+// Funciones para cada pestaña
+function tabDatosPersonales(usuario) {
+  const nombre = usuario?.nombre || 'Cargando...';
+  const correo = usuario?.correo || 'Cargando...';
+  const telefono = usuario?.telefono || '';
+  return `
+    <div id="tab-datos">
+      <h2 class="text-lg font-semibold mb-4">Datos Personales</h2>
+      <form id="form-datos-personales" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Nombre completo</label>
+          <input type="text" id="perfil-nombre" value="${usuario.nombre || ''}" 
+                 class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-chapinNaranja" required>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Correo electrónico</label>
+          <input type="email" id="perfil-correo" value="${correo}" readonly
+                 class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed">
+          <p class="text-xs text-slate-400 mt-1">El correo no se puede modificar</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Teléfono</label>
+          <input type="tel" id="perfil-telefono" value="${usuario.telefono || ''}" placeholder="+502 1234-5678"
+                 class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-chapinNaranja">
+        </div>
+        <button type="submit" 
+                class="bg-chapinAzul text-white px-8 py-3 rounded-full font-semibold hover:bg-chapinAzulClaro transition">
+          💾 Guardar Cambios
+        </button>
+      </form>
+      <div id="mensaje-datos" class="mt-3 text-sm hidden"></div>
+    </div>
+  `;
+}
+
+function tabDirecciones(direcciones) {
+  const lista = direcciones && direcciones.length
+    ? direcciones.map(d => `
+        <div class="flex items-start justify-between p-4 border border-slate-200 rounded-xl mb-3 ${d.esPredeterminada ? 'border-chapinNaranja bg-orange-50' : ''}">
+          <div class="flex items-start gap-3">
+            <span class="text-2xl">📍</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold">${d.etiqueta || 'Dirección'}</span>
+                ${d.esPredeterminada ? '<span class="text-xs bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Predeterminada</span>' : ''}
+              </div>
+              <p class="text-sm text-slate-600">${d.linea1}${d.linea2 ? ', ' + d.linea2 : ''}</p>
+              <p class="text-xs text-slate-400">${d.ciudad}, ${d.departamento} ${d.codigoPostal || ''}</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            ${!d.esPredeterminada ? `<button data-marcar-predeterminada="${d.id}" class="text-xs text-chapinAzul hover:text-chapinNaranja">⭐</button>` : ''}
+            <button data-editar-direccion="${d.id}" class="text-xs text-slate-500 hover:text-chapinAzul">✏️</button>
+            <button data-eliminar-direccion="${d.id}" class="text-xs text-red-400 hover:text-red-600">🗑️</button>
+          </div>
+        </div>
+      `).join('')
+    : '<p class="text-slate-400 text-sm text-center py-8">No tienes direcciones guardadas</p>';
+
+  return `
+    <div id="tab-direcciones">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Mis Direcciones</h2>
+        <button id="btn-agregar-direccion" class="text-sm bg-chapinNaranja text-white px-4 py-2 rounded-full hover:bg-orange-500 transition">
+          + Nueva Dirección
+        </button>
+      </div>
+      <div id="lista-direcciones">${lista}</div>
+      
+      <!-- Formulario para agregar/editar dirección (oculto por defecto) -->
+      <div id="form-direccion-container" class="hidden border border-slate-200 rounded-xl p-4 mt-4">
+        <h3 class="font-semibold mb-3" id="form-direccion-titulo">Nueva Dirección</h3>
+        <form id="form-direccion" class="space-y-3">
+          <input type="hidden" id="dir-id" value="">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium mb-1">Etiqueta</label>
+              <select id="dir-etiqueta" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="Casa">🏠 Casa</option>
+                <option value="Trabajo">🏢 Trabajo</option>
+                <option value="Otro">📍 Otro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1">Código Postal</label>
+              <input type="text" id="dir-codigo-postal" placeholder="01001" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1">Dirección (línea 1) *</label>
+            <input type="text" id="dir-linea1" placeholder="Ej: 5ta Avenida 8-42" required class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1">Referencia (línea 2)</label>
+            <input type="text" id="dir-linea2" placeholder="Zona 1, frente al parque" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium mb-1">Ciudad</label>
+              <input type="text" id="dir-ciudad" value="Ciudad de Guatemala" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1">Departamento</label>
+              <input type="text" id="dir-departamento" value="Guatemala" class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="dir-predeterminada" class="rounded">
+            <label for="dir-predeterminada" class="text-sm">Marcar como dirección predeterminada</label>
+          </div>
+          <div class="flex gap-3">
+            <button type="submit" class="bg-chapinAzul text-white px-6 py-2 rounded-full text-sm font-semibold">Guardar</button>
+            <button type="button" id="btn-cancelar-direccion" class="border border-slate-300 px-6 py-2 rounded-full text-sm">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function tabSeguridad() {
+  const correoUsuario = estadoApp.usuarioActual?.correo || '';
+  return `
+    <div id="tab-seguridad">
+      <h2 class="text-lg font-semibold mb-4">Cambiar Contraseña</h2>
+      <form id="form-cambiar-password" class="space-y-4 max-w-md">
+        <!-- Campo oculto requerido por accesibilidad del navegador para evitar advertencia de username -->
+        <input type="text" name="username" value="${correoUsuario}"
+               autocomplete="username" style="display:none;" aria-hidden="true" tabindex="-1" readonly>
+        <div>
+          <label class="block text-sm font-medium mb-1">Contraseña actual</label>
+          <input type="password" id="pass-actual" required placeholder="••••••••"
+                 autocomplete="current-password"
+                 class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-chapinNaranja">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Nueva contraseña</label>
+          <input type="password" id="pass-nueva" required placeholder="Mínimo 6 caracteres"
+                 autocomplete="new-password"
+                 class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-chapinNaranja">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Confirmar nueva contraseña</label>
+          <input type="password" id="pass-confirmar" required placeholder="Repite la nueva contraseña"
+                 autocomplete="new-password"
+                 class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-chapinNaranja">
+        </div>
+        <button type="submit" 
+                class="bg-chapinNaranja text-white px-8 py-3 rounded-full font-semibold hover:bg-orange-500 transition">
+          🔒 Actualizar Contraseña
+        </button>
+      </form>
+      <div id="mensaje-password" class="mt-3 text-sm hidden"></div>
+    </div>
+  `;
+}
+
+function tabTarjetas(tarjetas) {
+  const lista = tarjetas && tarjetas.length
+    ? tarjetas.map(t => `
+        <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-xl mb-3">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💳</span>
+            <div>
+              <p class="font-semibold">${t.tipo || 'Tarjeta'} **** ${t.numeroEnmascarado || '****'}</p>
+              <p class="text-xs text-slate-300">${t.titular || ''} • Vence: ${t.vencimiento || ''}</p>
+            </div>
+          </div>
+          <button data-eliminar-tarjeta="${t.id}" class="text-red-400 hover:text-red-300 text-sm">🗑️</button>
+        </div>
+      `).join('')
+    : '<p class="text-slate-400 text-sm text-center py-8">No tienes tarjetas guardadas</p>';
+
+  return `
+    <div id="tab-tarjetas">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Tarjetas Guardadas</h2>
+        <button id="btn-agregar-tarjeta" class="text-sm bg-chapinNaranja text-white px-4 py-2 rounded-full hover:bg-orange-500 transition">
+          + Agregar Tarjeta
+        </button>
+      </div>
+      <div id="lista-tarjetas">${lista}</div>
+      
+      <div id="form-tarjeta-container" class="hidden border border-slate-200 rounded-xl p-4 mt-4">
+        <h3 class="font-semibold mb-3">Nueva Tarjeta</h3>
+        <p class="text-xs text-slate-400 mb-3">🔒 Solo guardamos los últimos 4 dígitos de tu tarjeta</p>
+        <form id="form-tarjeta" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium mb-1">Nombre del titular</label>
+            <input type="text" id="tarjeta-titular" required placeholder="Como aparece en la tarjeta"
+                   class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-medium mb-1">Número de tarjeta</label>
+            <input type="text" id="tarjeta-numero" required placeholder="0000 0000 0000 0000" maxlength="19"
+                   class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium mb-1">Vencimiento</label>
+              <input type="text" id="tarjeta-vencimiento" required placeholder="MM/AA" maxlength="5"
+                     class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1">CVV</label>
+              <input type="text" id="tarjeta-cvv" placeholder="123" maxlength="4"
+                     class="w-full border rounded-lg px-3 py-2 text-sm">
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button type="submit" class="bg-chapinAzul text-white px-6 py-2 rounded-full text-sm font-semibold">Guardar</button>
+            <button type="button" id="btn-cancelar-tarjeta" class="border border-slate-300 px-6 py-2 rounded-full text-sm">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function tabPedidos(pedidos) {
+  const estadosEstilos = {
+    'pendiente': 'bg-yellow-100 text-yellow-700',
+    'enviado': 'bg-blue-100 text-blue-700',
+    'entregado': 'bg-green-100 text-green-700',
+    'cancelado': 'bg-red-100 text-red-700'
+  };
+
+  const lista = pedidos && pedidos.length
+    ? pedidos.map(p => `
+        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl mb-3 hover:shadow-md transition">
+          <div class="flex items-center gap-4">
+            <span class="text-2xl">📦</span>
+            <div>
+              <p class="font-semibold">Pedido #${p.id}</p>
+              <p class="text-xs text-slate-500">${new Date(p.fecha).toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p class="text-xs text-slate-400">${p.cantidadItems || 0} artículo(s)</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="font-bold text-chapinAzul">Q${(p.total || 0).toFixed(2)}</p>
+            <span class="text-xs px-2 py-1 rounded-full ${estadosEstilos[p.estado] || 'bg-slate-100'}">${p.estado || 'pendiente'}</span>
+          </div>
+        </div>
+      `).join('')
+    : '<p class="text-slate-400 text-sm text-center py-8">No tienes pedidos aún</p>';
+
+  return `
+    <div id="tab-pedidos">
+      <h2 class="text-lg font-semibold mb-4">Historial de Pedidos</h2>
+      <div id="lista-pedidos">${lista}</div>
+    </div>
+  `;
+}
+
 function configurarEventosVistaPerfil() {
-  const formPerfil = document.getElementById('form-perfil');
-  if (formPerfil) {
-    formPerfil.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nombre = document.getElementById('perfil-nombre').value;
-      const direccion = document.getElementById('perfil-direccion').value;
-      await llamarApi('/public/usuarios/perfil', {
-        method: 'PUT',
-        body: JSON.stringify({ id: estadoApp.usuarioActual.id, nombre, direccion })
-      });
-      estadoApp.usuarioActual.nombre = nombre;
-      estadoApp.usuarioActual.direccion = direccion;
-      guardarSesionEnLocalStorage();
-      mostrarModal('Perfil actualizado', 'Los datos se guardaron correctamente.');
-      renderizarVista();
-    });
+  // Variables para almacenar datos completos del perfil
+  let perfilCompleto = null;
+  let cargando = false;
+
+  // Cargar datos completos del perfil
+  async function cargarPerfilCompleto() {
+    if (cargando) return;
+    cargando = true;
+    try {
+      const uid = (estadoApp.usuarioActual && estadoApp.usuarioActual.id)
+        || (JSON.parse(localStorage.getItem('chapinMarket_usuario'))?.id);
+      const url = uid ? `/public/perfil?uid=${uid}` : '/public/perfil';
+      const resp = await llamarApi(url, { method: 'GET' });
+      if (resp.ok && resp.datos) {
+        perfilCompleto = resp.datos;
+        estadoApp.usuarioActual = {
+          ...estadoApp.usuarioActual,
+          nombre: perfilCompleto.nombre,
+          correo: perfilCompleto.correo,
+          telefono: perfilCompleto.telefono,
+          direccion: perfilCompleto.direccion,
+          direcciones: perfilCompleto.direcciones || [],
+          tarjetas: perfilCompleto.tarjetas || [],
+          pedidos: perfilCompleto.pedidos || []
+        };
+        guardarSesionEnLocalStorage();
+        actualizarTextoUsuario();
+      }
+    } catch (e) {
+      console.error('Error cargando perfil:', e);
+    } finally {
+      cargando = false;
+    }
   }
 
-  const formTarjeta = document.getElementById('form-nueva-tarjeta');
-  if (formTarjeta) {
-    formTarjeta.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const tarjeta = {
-        titular: document.getElementById('tarjeta-titular').value,
-        numeroEnmascarado: document.getElementById('tarjeta-numero').value.slice(-4),
-        vencimiento: document.getElementById('tarjeta-vencimiento').value,
-        tipo: 'VISA'
+  // Función para recargar y actualizar pestaña específica
+  async function cargarPerfilCompletoYActualizarTab(tabName) {
+    try {
+      const uid = estadoApp.usuarioActual?.id || JSON.parse(localStorage.getItem('chapinMarket_usuario'))?.id;
+      const url = uid ? `/public/perfil?uid=${uid}` : '/public/perfil';
+      const resp = await llamarApi(url, { method: 'GET' });
+      if (resp.ok && resp.datos) {
+        perfilCompleto = resp.datos;
+        estadoApp.usuarioActual = {
+          ...estadoApp.usuarioActual,
+          nombre: resp.datos.nombre,
+          correo: resp.datos.correo,
+          telefono: resp.datos.telefono,
+          direccion: resp.datos.direccion,
+          direcciones: resp.datos.direcciones || [],
+          tarjetas: resp.datos.tarjetas || [],
+          pedidos: resp.datos.pedidos || []
+        };
+        guardarSesionEnLocalStorage();
+        actualizarTextoUsuario();
+
+        // Actualizar solo el contenido de la pestaña activa
+        const tabContent = document.getElementById('perfil-tab-content');
+        if (tabContent) {
+          switch (tabName) {
+            case 'direcciones':
+              tabContent.innerHTML = tabDirecciones(estadoApp.usuarioActual.direcciones);
+              configurarTabDirecciones();
+              break;
+            case 'tarjetas':
+              tabContent.innerHTML = tabTarjetas(estadoApp.usuarioActual.tarjetas);
+              configurarTabTarjetas();
+              break;
+            case 'datos':
+              tabContent.innerHTML = tabDatosPersonales(estadoApp.usuarioActual);
+              configurarTabDatos();
+              break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error recargando perfil:', e);
+    }
+  }
+
+  // ============ PESTAÑAS ============
+  document.querySelectorAll('.perfil-tab').forEach(tab => {
+    tab.addEventListener('click', async () => {
+      // Actualizar estilos de pestañas
+      document.querySelectorAll('.perfil-tab').forEach(t => {
+        t.classList.remove('perfil-tab-activo');
+      });
+      tab.classList.add('perfil-tab-activo');
+
+      const tabName = tab.dataset.tab;
+
+      // Cargar datos completos si es necesario
+      if ((!estadoApp.usuarioActual?.direcciones || !estadoApp.usuarioActual?.direcciones.length) &&
+        (tabName === 'direcciones' || tabName === 'tarjetas' || tabName === 'pedidos')) {
+        await cargarPerfilCompleto();           // actualiza estadoApp.usuarioActual
+      }
+
+      // ✅ Leer SIEMPRE del estado más reciente después del await
+      const usuario = estadoApp.usuarioActual;
+
+      let contenido = '';
+      switch (tabName) {
+        case 'datos':
+          contenido = tabDatosPersonales(usuario);
+          break;
+        case 'direcciones':
+          contenido = tabDirecciones(usuario?.direcciones || []);
+          break;
+        case 'seguridad':
+          contenido = tabSeguridad();
+          break;
+        case 'tarjetas':
+          contenido = tabTarjetas(usuario?.tarjetas || []);
+          break;
+        case 'pedidos':
+          contenido = tabPedidos(usuario?.pedidos || []);
+          break;
+      }
+
+      document.getElementById('perfil-tab-content').innerHTML = contenido;
+      configurarEventosTabActiva(tabName);
+    });
+  });
+
+  // Cargar perfil completo al entrar y luego rellenar campos
+  // Cargar perfil completo al entrar, luego re-renderizar el tab con datos reales de la BD
+  cargarPerfilCompleto().then(() => {
+    const usuario = estadoApp.usuarioActual;
+    if (usuario) {
+      // Re-renderizar el tab de datos con los datos frescos del backend
+      const tabContent = document.getElementById('perfil-tab-content');
+      if (tabContent) {
+        tabContent.innerHTML = tabDatosPersonales(usuario);
+      }
+      // También actualizar la cabecera del perfil (nombre y correo visibles arriba)
+      const h1Perfil = document.querySelector('#vista-principal h1');
+      if (h1Perfil) h1Perfil.textContent = usuario.nombre || 'Usuario';
+      const emailPerfil = document.querySelector('#vista-principal .text-slate-500');
+      if (emailPerfil && usuario.correo) emailPerfil.textContent = usuario.correo;
+      // Actualizar el avatar (inicial del nombre)
+      const avatar = document.querySelector('#vista-principal .rounded-full.bg-gradient-to-br');
+      if (avatar && usuario.nombre) avatar.textContent = usuario.nombre.charAt(0).toUpperCase();
+    }
+    configurarEventosTabActiva('datos');
+  });
+}
+
+async function recargarDatosPerfilYActualizarTab(tabName) {
+  try {
+    const uid = estadoApp.usuarioActual?.id || JSON.parse(localStorage.getItem('chapinMarket_usuario'))?.id;
+    const url = uid ? `/public/perfil?uid=${uid}` : '/public/perfil';
+    const resp = await llamarApi(url, { method: 'GET' });
+    if (resp.ok && resp.datos) {
+      estadoApp.usuarioActual = {
+        ...estadoApp.usuarioActual,
+        nombre: resp.datos.nombre,
+        correo: resp.datos.correo,
+        telefono: resp.datos.telefono,
+        direccion: resp.datos.direccion,
+        direcciones: resp.datos.direcciones || [],
+        tarjetas: resp.datos.tarjetas || [],
+        pedidos: resp.datos.pedidos || []
       };
-      await llamarApi('/public/usuarios/tarjetas', {
-        method: 'POST',
-        body: JSON.stringify({ usuarioId: estadoApp.usuarioActual.id, tarjeta })
-      });
-      mostrarModal('Tarjeta guardada', 'La tarjeta se agregó correctamente.');
-      renderizarVista();
+      guardarSesionEnLocalStorage();
+      actualizarTextoUsuario();
+
+      const tabContent = document.getElementById('perfil-tab-content');
+      if (tabContent) {
+        switch (tabName) {
+          case 'direcciones':
+            tabContent.innerHTML = tabDirecciones(estadoApp.usuarioActual.direcciones);
+            configurarTabDirecciones();
+            break;
+          case 'tarjetas':
+            tabContent.innerHTML = tabTarjetas(estadoApp.usuarioActual.tarjetas);
+            configurarTabTarjetas();
+            break;
+          case 'datos':
+            tabContent.innerHTML = tabDatosPersonales(estadoApp.usuarioActual);
+            configurarTabDatos();
+            break;
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error recargando perfil:', e);
+  }
+}
+
+function configurarEventosTabActiva(tabName) {
+  switch (tabName) {
+    case 'datos':
+      configurarTabDatos();
+      break;
+    case 'direcciones':
+      configurarTabDirecciones();
+      break;
+    case 'seguridad':
+      configurarTabSeguridad();
+      break;
+    case 'tarjetas':
+      configurarTabTarjetas();
+      break;
+    case 'pedidos':
+      // Solo lectura, no requiere eventos específicos
+      break;
+  }
+}
+
+// ============ TAB DATOS PERSONALES ============
+function configurarTabDatos() {
+  const form = document.getElementById('form-datos-personales');
+  if (!form) return;
+
+  // Precargar datos del usuario actual
+  const usuario = estadoApp.usuarioActual;
+  if (usuario) {
+    const nombreInput = document.getElementById('perfil-nombre');
+    const correoInput = document.getElementById('perfil-correo');
+    const telefonoInput = document.getElementById('perfil-telefono');
+
+    if (nombreInput) nombreInput.value = usuario.nombre || '';
+    if (correoInput) correoInput.value = usuario.correo || '';
+    if (telefonoInput) telefonoInput.value = usuario.telefono || '';
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('perfil-nombre').value.trim();
+    const telefono = document.getElementById('perfil-telefono').value.trim();
+
+    if (!nombre) {
+      mostrarModal('Error', '<p class="text-sm text-red-600">El nombre es requerido</p>');
+      return;
+    }
+
+    const resp = await llamarApi('/public/perfil/datos', {
+      method: 'PUT',
+      body: JSON.stringify({ nombre, telefono })
+    });
+
+    const mensaje = document.getElementById('mensaje-datos');
+    if (!mensaje) return;
+
+    if (resp.ok) {
+      // Actualizar estado local
+      estadoApp.usuarioActual.nombre = nombre;
+      estadoApp.usuarioActual.telefono = telefono;
+      guardarSesionEnLocalStorage();
+      actualizarTextoUsuario();
+
+      mensaje.className = 'mt-3 text-sm text-green-600 bg-green-50 p-3 rounded-lg';
+      mensaje.textContent = '✅ Datos actualizados correctamente';
+    } else {
+      mensaje.className = 'mt-3 text-sm text-red-600 bg-red-50 p-3 rounded-lg';
+      mensaje.textContent = '❌ ' + (resp.mensaje || 'Error al actualizar');
+    }
+    mensaje.classList.remove('hidden');
+    setTimeout(() => mensaje.classList.add('hidden'), 3000);
+  });
+}
+
+// ============ TAB DIRECCIONES ============
+function configurarTabDirecciones() {
+  const btnAgregar = document.getElementById('btn-agregar-direccion');
+  const formContainer = document.getElementById('form-direccion-container');
+  const btnCancelar = document.getElementById('btn-cancelar-direccion');
+  const form = document.getElementById('form-direccion');
+
+  if (btnAgregar && formContainer) {
+    btnAgregar.addEventListener('click', () => {
+      document.getElementById('form-direccion-titulo').textContent = 'Nueva Dirección';
+      document.getElementById('dir-id').value = '';
+      if (form) form.reset();
+      formContainer.classList.remove('hidden');
     });
   }
 
+  if (btnCancelar && formContainer) {
+    btnCancelar.addEventListener('click', () => {
+      formContainer.classList.add('hidden');
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('dir-id').value;
+      const data = {
+        etiqueta: document.getElementById('dir-etiqueta').value,
+        linea1: document.getElementById('dir-linea1').value,
+        linea2: document.getElementById('dir-linea2').value,
+        ciudad: document.getElementById('dir-ciudad').value,
+        departamento: document.getElementById('dir-departamento').value,
+        codigoPostal: document.getElementById('dir-codigo-postal').value,
+        esPredeterminada: document.getElementById('dir-predeterminada').checked ? 1 : 0
+      };
+
+      if (!data.linea1 || !data.linea1.trim()) {
+        mostrarModal('Error', '<p class="text-sm text-red-600">La dirección es requerida</p>');
+        return;
+      }
+
+      const url = id
+        ? '/public/perfil/direcciones/' + id
+        : '/public/perfil/direcciones';
+      const method = id ? 'PUT' : 'POST';
+
+      const resp = await llamarApi(url, { method, body: JSON.stringify(data) });
+
+      if (resp.ok) {
+        mostrarModal(id ? 'Dirección actualizada' : 'Dirección agregada',
+          '<p class="text-sm">Los cambios se guardaron correctamente.</p>');
+        formContainer.classList.add('hidden');
+        // Recargar lista de direcciones
+        await recargarDatosPerfilYActualizarTab('direcciones');
+      } else {
+        mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo guardar') + '</p>');
+      }
+    });
+  }
+
+  // Botones eliminar dirección
+  document.querySelectorAll('[data-eliminar-direccion]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.eliminarDireccion;
+      if (confirm('¿Eliminar esta dirección?')) {
+        const resp = await llamarApi('/public/perfil/direcciones/' + id, { method: 'DELETE' });
+        if (resp.ok) {
+          mostrarModal('Dirección eliminada', '<p class="text-sm">Se eliminó correctamente.</p>');
+          await recargarDatosPerfilYActualizarTab('direcciones');
+        } else {
+          mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo eliminar') + '</p>');
+        }
+      }
+    });
+  });
+
+  // Botones editar dirección
+  document.querySelectorAll('[data-editar-direccion]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.editarDireccion);
+      const dir = estadoApp.usuarioActual.direcciones?.find(d => d.id === id);
+      if (dir) {
+        document.getElementById('form-direccion-titulo').textContent = 'Editar Dirección';
+        document.getElementById('dir-id').value = dir.id;
+        document.getElementById('dir-etiqueta').value = dir.etiqueta || 'Casa';
+        document.getElementById('dir-linea1').value = dir.linea1 || '';
+        document.getElementById('dir-linea2').value = dir.linea2 || '';
+        document.getElementById('dir-ciudad').value = dir.ciudad || 'Ciudad de Guatemala';
+        document.getElementById('dir-departamento').value = dir.departamento || 'Guatemala';
+        document.getElementById('dir-codigo-postal').value = dir.codigoPostal || '';
+        document.getElementById('dir-predeterminada').checked = dir.esPredeterminada === 1;
+        if (formContainer) formContainer.classList.remove('hidden');
+      }
+    });
+  });
+
+  // Botones marcar como predeterminada
+  document.querySelectorAll('[data-marcar-predeterminada]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.marcarPredeterminada);
+      const resp = await llamarApi('/public/perfil/direcciones/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({ esPredeterminada: 1 })
+      });
+      if (resp.ok) {
+        mostrarModal('Dirección predeterminada', '<p class="text-sm">Se actualizó correctamente.</p>');
+        await recargarDatosPerfilYActualizarTab('direcciones');
+      } else {
+        mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo actualizar') + '</p>');
+      }
+    });
+  });
+}
+
+// ============ TAB SEGURIDAD ============
+function configurarTabSeguridad() {
+  const form = document.getElementById('form-cambiar-password');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const passwordActual = document.getElementById('pass-actual').value;
+    const passwordNueva = document.getElementById('pass-nueva').value;
+    const passwordConfirmar = document.getElementById('pass-confirmar').value;
+
+    // Validaciones frontend completas
+    if (!passwordActual || !passwordNueva || !passwordConfirmar) {
+      mostrarModal('Error', '<p class="text-sm text-red-600">Todos los campos son requeridos</p>');
+      return;
+    }
+
+    if (passwordNueva.length < 6) {
+      mostrarModal('Error', '<p class="text-sm text-red-600">La nueva contraseña debe tener al menos 6 caracteres</p>');
+      return;
+    }
+
+    if (passwordNueva !== passwordConfirmar) {
+      mostrarModal('Error', '<p class="text-sm text-red-600">Las contraseñas no coinciden</p>');
+      return;
+    }
+
+    if (passwordActual === passwordNueva) {
+      mostrarModal('Error', '<p class="text-sm text-red-600">La nueva contraseña debe ser diferente a la actual</p>');
+      return;
+    }
+
+    const resp = await llamarApi('/public/perfil/password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        passwordActual: passwordActual,
+        passwordNueva: passwordNueva,
+        passwordConfirmar: passwordConfirmar
+      })
+    });
+
+    const mensaje = document.getElementById('mensaje-password');
+    if (!mensaje) return;
+
+    if (resp.ok) {
+      mensaje.className = 'mt-3 text-sm text-green-600 bg-green-50 p-3 rounded-lg';
+      mensaje.textContent = '✅ Contraseña actualizada correctamente';
+      form.reset();
+    } else {
+      mensaje.className = 'mt-3 text-sm text-red-600 bg-red-50 p-3 rounded-lg';
+      mensaje.textContent = '❌ ' + (resp.mensaje || 'Error al cambiar la contraseña');
+    }
+    mensaje.classList.remove('hidden');
+    setTimeout(() => mensaje.classList.add('hidden'), 4000);
+  });
+}
+
+// ============ TAB TARJETAS ============
+function configurarTabTarjetas() {
+  const btnAgregar = document.getElementById('btn-agregar-tarjeta');
+  const formContainer = document.getElementById('form-tarjeta-container');
+  const btnCancelar = document.getElementById('btn-cancelar-tarjeta');
+  const form = document.getElementById('form-tarjeta');
+
+  if (btnAgregar && formContainer) {
+    btnAgregar.addEventListener('click', () => {
+      formContainer.classList.remove('hidden');
+      if (form) form.reset();
+    });
+  }
+
+  if (btnCancelar && formContainer) {
+    btnCancelar.addEventListener('click', () => {
+      formContainer.classList.add('hidden');
+      if (form) form.reset();
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const titular = document.getElementById('tarjeta-titular').value.trim();
+      const numeroCompleto = document.getElementById('tarjeta-numero').value.replace(/\s/g, '');
+      const vencimiento = document.getElementById('tarjeta-vencimiento').value.trim();
+
+      if (!titular || !numeroCompleto || !vencimiento) {
+        mostrarModal('Error', '<p class="text-sm text-red-600">Todos los campos son requeridos</p>');
+        return;
+      }
+
+      if (numeroCompleto.length < 4) {
+        mostrarModal('Error', '<p class="text-sm text-red-600">El número de tarjeta debe tener al menos 4 dígitos</p>');
+        return;
+      }
+
+      // Solo extraer últimos 4 dígitos para seguridad
+      const ultimos4 = numeroCompleto.slice(-4);
+
+      // ✅ USAR /perfil/tarjetas (CORREGIDO)
+      const resp = await llamarApi('/public/perfil/tarjetas', {
+        method: 'POST',
+        body: JSON.stringify({
+          titular: titular,
+          numeroEnmascarado: ultimos4,
+          tipo: 'Tarjeta',
+          vencimiento: vencimiento
+        })
+      });
+
+      if (resp.ok) {
+        mostrarModal('Tarjeta guardada',
+          '<p class="text-sm">✅ Tarjeta guardada de forma segura.<br>Solo almacenamos: ****' + ultimos4 + '</p>');
+        form.reset();
+        formContainer.classList.add('hidden');
+        // Recargar lista de tarjetas
+        await recargarDatosPerfilYActualizarTab('tarjetas');
+      } else {
+        mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo guardar la tarjeta') + '</p>');
+      }
+    });
+  }
+
+  // Eliminar tarjeta
   document.querySelectorAll('[data-eliminar-tarjeta]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const tarjetaId = parseInt(btn.dataset.eliminarTarjeta);
-      await llamarApi('/public/usuarios/tarjetas', {
-        method: 'DELETE',
-        body: JSON.stringify({ usuarioId: estadoApp.usuarioActual.id, tarjetaId })
-      });
-      mostrarModal('Tarjeta eliminada', 'Se quitó correctamente.');
-      renderizarVista();
+      const id = btn.dataset.eliminarTarjeta;
+      if (confirm('¿Eliminar esta tarjeta?')) {
+        // ✅ USAR /perfil/tarjetas/{id} (CORREGIDO)
+        const resp = await llamarApi('/public/perfil/tarjetas/' + id, { method: 'DELETE' });
+        if (resp.ok) {
+          mostrarModal('Tarjeta eliminada', '<p class="text-sm">Se eliminó correctamente.</p>');
+          await recargarDatosPerfilYActualizarTab('tarjetas');
+        } else {
+          mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo eliminar') + '</p>');
+        }
+      }
     });
   });
 }
@@ -2419,6 +3372,7 @@ function configurarEventosEliminarCarrito() {
 }
 
 function abrirPanelCarrito() {
+  cerrarTodosLosPaneles('carrito');  // Cierra menú y dropdown, pero no el carrito
   const panel = document.getElementById('panel-carrito');
   if (panel) {
     panel.classList.remove('translate-x-full');
@@ -2476,34 +3430,60 @@ async function cerrarSesion() {
   }
 }
 
+function manejarBusqueda(valor) {
+  const texto = valor.trim().toLowerCase();
+  if (!texto) return;
+  const resultados = estadoApp.productos.filter(
+    (p) => p.nombre.toLowerCase().includes(texto) || p.descripcion.toLowerCase().includes(texto)
+  );
+  mostrarResultadosBusqueda(texto, resultados);
+}
+
 function configurarEventosGlobales() {
   const botonLogo = document.getElementById('boton-logo');
   const cerrarPanel = document.getElementById('cerrar-panel-carrito');
   const botonUsuario = document.getElementById('boton-usuario');
+  const botonFlotanteCarrito = document.getElementById('boton-flotante-carrito');
+  const btnCheckoutEscritorio = document.getElementById('boton-ir-checkout');
+  const contadorFlotante = document.getElementById('contador-carrito-flotante');
+  const modal = document.getElementById('modal-general');
+  const modalCerrar = document.getElementById('modal-cerrar');
+  const iconoBusqueda = document.getElementById('icono-busqueda');
+  const inputBusqueda = document.getElementById('input-busqueda-global');
+  const botonCategorias = document.getElementById('boton-categorias-dropdown');
+  const botonHamburguesa = document.getElementById('boton-hamburguesa');
+  const cerrarMenuMovil = document.getElementById('cerrar-menu-movil');
+  const btnCatMovil = document.getElementById('btn-categorias-movil');
+  const menuMovilPromo = document.getElementById('menu-movil-promociones');
+  const menuMovilTodas = document.getElementById('menu-movil-todas-categorias');
+  const menuMovilTemp = document.getElementById('menu-movil-temporadas');
+  const botonIrPromociones = document.getElementById('boton-ir-promociones');
+  const botonIrCategorias = document.getElementById('boton-ir-categorias');
+  const botonIrTemporadas = document.getElementById('boton-ir-temporadas');
 
+  // --- Logo ---
   if (botonLogo) {
     botonLogo.addEventListener('click', () => {
       window.location.hash = '#/';
     });
   }
 
+  // --- Cerrar carrito ---
   if (cerrarPanel) {
     cerrarPanel.addEventListener('click', () => {
       cerrarPanelCarrito();
     });
   }
 
-  // Botón flotante - ÚNICO punto de acceso al carrito
-  const botonFlotanteCarrito = document.getElementById('boton-flotante-carrito');
+  // --- Botón flotante carrito (único acceso) ---
   if (botonFlotanteCarrito) {
     botonFlotanteCarrito.addEventListener('click', () => {
       actualizarPanelCarrito();
-      abrirPanelCarrito();
+      abrirPanelCarrito();  // abrirPanelCarrito ahora cierra otros paneles
     });
   }
 
-  const btnCheckoutEscritorio = document.getElementById('boton-ir-checkout');
-
+  // --- Botón "Ir a pagar" del carrito ---
   if (btnCheckoutEscritorio) {
     btnCheckoutEscritorio.addEventListener('click', () => {
       cerrarPanelCarrito();
@@ -2511,7 +3491,7 @@ function configurarEventosGlobales() {
     });
   }
 
-  const contadorFlotante = document.getElementById('contador-carrito-flotante');
+  // --- Sincronizar contador flotante ---
   if (contadorFlotante) {
     const observer = new MutationObserver(() => {
       const contadorPrincipal = document.getElementById('contador-carrito');
@@ -2519,13 +3499,13 @@ function configurarEventosGlobales() {
         contadorFlotante.textContent = contadorPrincipal.textContent;
       }
     });
-
     const contadorPrincipal = document.getElementById('contador-carrito');
     if (contadorPrincipal) {
       observer.observe(contadorPrincipal, { characterData: true, subtree: true, childList: true });
     }
   }
 
+  // --- Usuario ---
   if (botonUsuario) {
     botonUsuario.addEventListener('click', () => {
       if (estadoApp.usuarioActual) {
@@ -2536,8 +3516,7 @@ function configurarEventosGlobales() {
     });
   }
 
-  const modal = document.getElementById('modal-general');
-  const modalCerrar = document.getElementById('modal-cerrar');
+  // --- Modal general ---
   if (modal && modalCerrar) {
     modalCerrar.addEventListener('click', cerrarModal);
     modal.addEventListener('click', (e) => {
@@ -2545,63 +3524,215 @@ function configurarEventosGlobales() {
     });
   }
 
-  const botonBusquedaMovil = document.getElementById('boton-busqueda-movil');
-  const contenedorBusquedaMovil = document.getElementById('contenedor-busqueda-movil');
-  if (botonBusquedaMovil && contenedorBusquedaMovil) {
-    botonBusquedaMovil.addEventListener('click', () => {
-      contenedorBusquedaMovil.classList.toggle('hidden');
+  // ========== NUEVAS INTERACCIONES ==========
+
+  // --- Ícono de búsqueda clickable (reutiliza lógica de Enter) ---
+  if (iconoBusqueda && inputBusqueda) {
+    iconoBusqueda.addEventListener('click', () => {
+      const valor = inputBusqueda.value.trim();
+      if (valor) manejarBusqueda(valor);
     });
   }
 
-  const inputBusqueda = document.getElementById('input-busqueda-global');
-  const inputBusquedaMovil = document.getElementById('input-busqueda-global-movil');
-
-  function manejarBusqueda(valor) {
-    const texto = valor.trim().toLowerCase();
-    if (!texto) return;
-    const resultados = estadoApp.productos.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(texto) ||
-        p.descripcion.toLowerCase().includes(texto)
-    );
-    mostrarResultadosBusqueda(texto, resultados);
-  }
-
+  // --- Búsqueda por Enter (desktop) ---
   if (inputBusqueda) {
     inputBusqueda.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        manejarBusqueda(inputBusqueda.value);
-      }
-    });
-  }
-  if (inputBusquedaMovil) {
-    inputBusquedaMovil.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        manejarBusqueda(inputBusquedaMovil.value);
+        const valor = inputBusqueda.value.trim();
+        if (valor) manejarBusqueda(valor);
       }
     });
   }
 
-  const botonIrPromociones = document.getElementById('boton-ir-promociones');
+  // --- Dropdown Categorías (click, ya no hover) ---
+  if (botonCategorias) {
+    botonCategorias.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dropdown = document.getElementById('dropdown-categorias');
+      const flecha = document.getElementById('flecha-categorias');
+      const estaAbierto = dropdown && dropdown.classList.contains('dropdown-abierto');
+
+      cerrarTodosLosPaneles(estaAbierto ? null : 'categorias'); // si está abierto lo cerramos
+
+      if (!estaAbierto) {
+        // Abrir
+        if (dropdown) {
+          dropdown.classList.remove('hidden');
+          dropdown.classList.add('dropdown-abierto');
+        }
+        if (flecha) flecha.classList.add('rotate-arrow');
+      }
+    });
+  }
+
+  // --- Hamburger menú (móvil) ---
+  if (botonHamburguesa) {
+    botonHamburguesa.addEventListener('click', () => {
+      const menuPanel = document.getElementById('panel-menu-movil');
+      const estaAbierto = menuPanel && menuPanel.classList.contains('menu-abierto');
+      cerrarTodosLosPaneles(estaAbierto ? null : 'menu-movil');
+      if (!estaAbierto && menuPanel) {
+        menuPanel.classList.add('menu-abierto');
+      }
+    });
+  }
+
+  // --- Cerrar menú móvil (botón X) ---
+  if (cerrarMenuMovil) {
+    cerrarMenuMovil.addEventListener('click', () => {
+      cerrarTodosLosPaneles();
+    });
+  }
+
+  // --- Acordeón de Categorías dentro del menú móvil ---
+  if (btnCatMovil) {
+    btnCatMovil.addEventListener('click', () => {
+      const submenu = document.getElementById('submenu-categorias-movil');
+      const flecha = document.getElementById('flecha-categorias-movil');
+      if (submenu && flecha) {
+        const oculto = submenu.classList.contains('hidden');
+        if (oculto) {
+          submenu.classList.remove('hidden');
+          flecha.classList.add('rotate-arrow');
+        } else {
+          submenu.classList.add('hidden');
+          flecha.classList.remove('rotate-arrow');
+        }
+      }
+    });
+  }
+
+  // --- Navegación desde el menú móvil ---
+  const navegarYcerrar = (hash) => {
+    cerrarTodosLosPaneles();
+    window.location.hash = hash;
+  };
+
+  if (menuMovilPromo) menuMovilPromo.addEventListener('click', () => navegarYcerrar('#/promociones'));
+  if (menuMovilTodas) menuMovilTodas.addEventListener('click', () => navegarYcerrar('#/categorias'));
+  if (menuMovilTemp) menuMovilTemp.addEventListener('click', () => navegarYcerrar('#/temporadas'));
+
+  // --- Navegación de los botones de escritorio (segunda fila) ---
   if (botonIrPromociones) {
     botonIrPromociones.addEventListener('click', () => {
       window.location.hash = '#/promociones';
     });
   }
-
-  const botonIrCategorias = document.getElementById('boton-ir-categorias');
   if (botonIrCategorias) {
     botonIrCategorias.addEventListener('click', () => {
       window.location.hash = '#/categorias';
     });
   }
-
-  const botonIrTemporadas = document.getElementById('boton-ir-temporadas');
   if (botonIrTemporadas) {
     botonIrTemporadas.addEventListener('click', () => {
       window.location.hash = '#/temporadas';
     });
   }
+
+  // ========== CIERRE GLOBAL ==========
+
+  // Clic fuera de los paneles activos → cierra todos
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    const panelCarrito = document.getElementById('panel-carrito');
+    const botonFlotante = document.getElementById('boton-flotante-carrito');
+    const dropdownCat = document.getElementById('dropdown-categorias');
+    const botonCat = document.getElementById('boton-categorias-dropdown');
+    const menuMovil = document.getElementById('panel-menu-movil');
+    const botonHam = document.getElementById('boton-hamburguesa');
+
+    const carritoAbierto = panelCarrito && !panelCarrito.classList.contains('translate-x-full');
+    const catAbierto = dropdownCat && dropdownCat.classList.contains('dropdown-abierto');
+    const menuAbierto = menuMovil && menuMovil.classList.contains('menu-abierto');
+
+    if (carritoAbierto && !target.closest('#panel-carrito') && !target.closest('#boton-flotante-carrito')) {
+      cerrarTodosLosPaneles();
+      return;
+    }
+    if (catAbierto && !target.closest('#dropdown-categorias') && !target.closest('#boton-categorias-dropdown')) {
+      cerrarTodosLosPaneles();
+      return;
+    }
+    if (menuAbierto && !target.closest('#panel-menu-movil') && !target.closest('#boton-hamburguesa')) {
+      cerrarTodosLosPaneles();
+      return;
+    }
+  });
+
+  // Redimensionar ventana → cerrar todo
+  window.addEventListener('resize', () => {
+    cerrarTodosLosPaneles();
+  });
+
+  // ===================================
+}
+
+/**
+ * Configura el header para que reaccione al scroll:
+ * - Se oculta hacia abajo (después de cierta distancia)
+ * - Reaparece hacia arriba
+ * - No oculta si hay paneles abiertos (carrito, menú móvil, dropdown categorías)
+ */
+function configurarHeaderScroll() {
+  const header = document.getElementById('header-principal');
+  const main = document.getElementById('main-content');
+  if (!header || !main) return;
+
+  // Ajustar padding-top del main para que no tape contenido
+  function ajustarPaddingMain() {
+    const alturaHeader = header.offsetHeight;
+    main.style.paddingTop = (alturaHeader + 10) + 'px';
+  }
+
+  ajustarPaddingMain();
+  window.addEventListener('resize', ajustarPaddingMain);
+
+  let lastScrollY = window.scrollY;
+  let ticking = false;
+  const deltaMinimo = 10; // pequeña zona muerta para evitar parpadeos
+
+  function actualizarHeader() {
+    const currentScrollY = window.scrollY;
+    const diff = currentScrollY - lastScrollY;
+    const headerAltura = header.offsetHeight;
+
+    // Verificar si hay algún panel abierto que impida ocultar
+    const panelCarritoAbierto = document.getElementById('panel-carrito')?.classList.contains('translate-x-full') === false;
+    const menuMovilAbierto = document.getElementById('panel-menu-movil')?.classList.contains('menu-abierto');
+    const dropdownAbierto = document.getElementById('dropdown-categorias')?.classList.contains('dropdown-abierto');
+    const algunPanelAbierto = panelCarritoAbierto || menuMovilAbierto || dropdownAbierto;
+
+    if (algunPanelAbierto) {
+      // Con panel abierto: mostrar solo en la parte superior, ocultar en el resto
+      if (currentScrollY <= headerAltura) {
+        header.classList.remove('header-oculto');
+      } else {
+        header.classList.add('header-oculto');
+      }
+    } else {
+      if (currentScrollY <= headerAltura) {
+        header.classList.remove('header-oculto');
+      } else if (diff > deltaMinimo) {
+        header.classList.add('header-oculto');
+      } else if (diff < -deltaMinimo) {
+        header.classList.remove('header-oculto');
+      }
+    }
+
+    lastScrollY = currentScrollY;
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(actualizarHeader);
+      ticking = true;
+    }
+  }, { passive: true });
+
+  // Al abrir/cerrar paneles, forzar visibilidad (se cubre con la lógica de arriba,
+  // pero podemos llamar una actualización inmediata tras cambios de panel).
+  // Con la comprobación dentro de actualizarHeader es suficiente.
 }
 
 function mostrarResultadosBusqueda(texto, resultados) {
@@ -2609,7 +3740,7 @@ function mostrarResultadosBusqueda(texto, resultados) {
     <section class="space-y-3 text-sm">
       <div class="flex items-center justify-between">
         <h1 class="text-base sm:text-lg font-semibold">Resultados para "${texto}"</h1>
-        <button class="text-xs text-chapinAzul hover:text-chapinNaranja" onclick="window.location.hash='#/'">Volver al inicio</button>
+        <button class="text-xs text-chapinAzul hover:text-chapinNaranja cursor-pointer" onclick="window.location.hash='#/'; setTimeout(function(){ window.scrollTo({top:0,behavior:'smooth'}); }, 50);">Volver al inicio</button>
       </div>
       ${resultados.length
       ? `<div id="contenedor-busqueda-productos">${gridProductos(resultados.slice(0, 40))}</div>`
@@ -2623,29 +3754,102 @@ function mostrarResultadosBusqueda(texto, resultados) {
   configurarEventosBotonesAgregarCarrito();
 }
 
-// Reemplazar la función iniciarHeroRotativo por una versión animada
 function iniciarHeroRotativo() {
   const slides = document.querySelectorAll('.hero-slide');
-  if (!slides.length) return;
-  let current = 0;
-  const total = slides.length;
+  const dots = document.querySelectorAll('.hero-dot');
 
-  const showSlide = (index) => {
-    slides.forEach((slide, i) => {
+  if (!slides.length) return;
+
+  let currentSlide = 0;
+  const totalSlides = slides.length;
+  let intervalo;
+  let transicionEnCurso = false;
+
+  // Configurar estado inicial
+  slides.forEach((slide, index) => {
+    if (index === 0) {
+      slide.classList.remove('opacity-0', 'translate-x-8', 'pointer-events-none');
+      slide.classList.add('opacity-100', 'translate-x-0');
+    }
+  });
+
+  if (dots.length && dots[0]) {
+    dots[0].classList.add('bg-white');
+    dots[0].classList.remove('bg-white/40');
+    dots[0].classList.add('w-6');
+  }
+
+  function actualizarDots(index) {
+    dots.forEach((dot, i) => {
       if (i === index) {
-        slide.classList.remove('hero-hidden');
-        slide.style.position = 'relative';
+        dot.classList.add('bg-white');
+        dot.classList.remove('bg-white/40');
+        dot.classList.add('w-6');
+        dot.classList.remove('w-2.5');
       } else {
-        slide.classList.add('hero-hidden');
-        slide.style.position = 'absolute';
+        dot.classList.remove('bg-white');
+        dot.classList.add('bg-white/40');
+        dot.classList.remove('w-6');
+        dot.classList.add('w-2.5');
       }
     });
-  };
+  }
 
-  setInterval(() => {
-    current = (current + 1) % total;
-    showSlide(current);
-  }, 5000);
+  function cambiarASlide(nuevoIndex) {
+    if (transicionEnCurso || nuevoIndex === currentSlide) return;
+    transicionEnCurso = true;
+
+    const slideActual = slides[currentSlide];
+    const slideSiguiente = slides[nuevoIndex];
+
+    // Ocultar slide actual
+    slideActual.classList.add('opacity-0', 'translate-x-8', 'pointer-events-none');
+    slideActual.classList.remove('opacity-100', 'translate-x-0');
+
+    // Mostrar nuevo slide
+    slideSiguiente.classList.remove('opacity-0', 'translate-x-8', 'pointer-events-none');
+    slideSiguiente.classList.add('opacity-100', 'translate-x-0');
+
+    actualizarDots(nuevoIndex);
+    currentSlide = nuevoIndex;
+
+    setTimeout(() => {
+      transicionEnCurso = false;
+    }, 700);
+  }
+
+  function siguienteSlide() {
+    const siguiente = (currentSlide + 1) % totalSlides;
+    cambiarASlide(siguiente);
+  }
+
+  // Event listeners en los dots
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const index = parseInt(dot.dataset.dot);
+      cambiarASlide(index);
+      reiniciarIntervalo();
+    });
+  });
+
+  function reiniciarIntervalo() {
+    clearInterval(intervalo);
+    intervalo = setInterval(siguienteSlide, 5000);
+  }
+
+  // Iniciar rotación automática
+  intervalo = setInterval(siguienteSlide, 5000);
+
+  // Pausar al hover
+  const heroWrapper = document.querySelector('.hero-wrapper');
+  if (heroWrapper) {
+    heroWrapper.addEventListener('mouseenter', () => {
+      clearInterval(intervalo);
+    });
+    heroWrapper.addEventListener('mouseleave', () => {
+      intervalo = setInterval(siguienteSlide, 5000);
+    });
+  }
 }
 
 function actualizarTextoUsuario() {

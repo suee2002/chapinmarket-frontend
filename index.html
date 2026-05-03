@@ -28,18 +28,19 @@
 <body class="bg-chapinGris text-slate-900 min-h-screen flex flex-col">
   <div id="overlay-carga" class="overlay-carga hidden">
     <div class="spinner-chapin" aria-hidden="true">
-      <img src="img/logo.png" alt="ChapínMarket" class="w-10 h-10 object-contain"
-        onerror="this.style.display='none';" />
+      <img src="img/logo.png?v=2" alt="ChapínMarket" class="h-10 sm:h-12 object-contain"
+        onerror="this.onerror=null; this.src='https://picsum.photos/80/80';" />
     </div>
   </div>
 
   <div class="flex flex-col min-h-screen">
-    <header class="bg-chapinAzul text-white shadow-md">
+    <header id="header-principal"
+      class="bg-chapinAzul text-white shadow-md fixed top-0 left-0 right-0 z-50 transition-transform duration-300 will-change-transform">
       <div class="max-w-6xl mx-auto px-3 sm:px-4">
-        <div class="flex items-center justify-between py-3 gap-2">
+        <div class="flex items-center justify-between py-2 sm:py-3 gap-2">
           <button id="boton-logo"
             class="flex items-center gap-2 font-bold text-lg sm:text-2xl tracking-tight focus:outline-none">
-            <img src="img/logo.png" alt="ChapínMarket" class="h-8 sm:h-10 object-contain"
+            <img src="img/logo.png?v=2" alt="ChapínMarket" class="h-10 sm:h-12 object-contain"
               onerror="this.onerror=null; this.src='https://picsum.photos/80/80';" />
             <span class="hidden sm:inline">Chapín<span class="text-chapinNaranja">Market</span></span>
           </button>
@@ -48,37 +49,30 @@
             <div class="relative">
               <input id="input-busqueda-global" type="search" placeholder="Buscar productos, categorías o temporadas..."
                 class="w-full rounded-full py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
-              <span class="absolute left-3 top-2 text-slate-400">🔍</span>
+              <span id="icono-busqueda"
+                class="absolute left-3 top-2 text-slate-400 cursor-pointer hover:text-chapinNaranja transition">🔍</span>
             </div>
           </div>
 
           <div class="flex items-center gap-3">
-            <button id="boton-busqueda-movil" class="sm:hidden text-xl">🔍</button>
             <button id="boton-usuario"
               class="flex items-center gap-1 text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-1 rounded-full">
               <span class="text-lg">👤</span>
               <span id="texto-usuario-actual" class="hidden sm:inline-block">Iniciar sesión</span>
             </button>
-            <!-- ELIMINADO: boton-carrito del header -->
-          </div>
-        </div>
-
-        <div id="contenedor-busqueda-movil" class="sm:hidden hidden pb-2">
-          <div class="relative">
-            <input id="input-busqueda-global-movil" type="search" placeholder="Buscar productos..."
-              class="w-full rounded-full py-1.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
-            <span class="absolute left-3 top-1.5 text-slate-400">🔍</span>
+            <button id="boton-hamburguesa" class="md:hidden text-2xl focus:outline-none ml-1">☰</button>
           </div>
         </div>
 
         <nav class="hidden md:flex items-center gap-4 py-2 text-sm">
-          <div class="relative group">
-            <button class="flex items-center gap-2 px-3 py-1 rounded-full bg-white text-chapinAzul font-medium">
+          <div class="relative">
+            <button id="boton-categorias-dropdown"
+              class="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-chapinAzul font-medium hover:shadow-md transition">
               <span>🧭 Categorías</span>
-              <span>▾</span>
+              <span id="flecha-categorias" class="transition-transform duration-300">▾</span>
             </button>
-            <div
-              class="absolute left-0 mt-2 bg-white text-slate-900 rounded-lg shadow-xl border border-slate-100 w-[620px] p-4 z-30 hidden group-hover:grid md:grid-cols-3 gap-4">
+            <div id="dropdown-categorias"
+              class="absolute left-0 mt-2 bg-white text-slate-900 rounded-xl shadow-2xl border border-slate-200 w-[620px] p-6 z-30 hidden md:grid grid-cols-3 gap-6 opacity-0 -translate-y-2 transition-all duration-300">
               <div id="mega-menu-columna-1" class="space-y-2 text-sm"></div>
               <div id="mega-menu-columna-2" class="space-y-2 text-sm"></div>
               <div id="mega-menu-columna-3" class="space-y-2 text-sm"></div>
@@ -91,14 +85,14 @@
       </div>
     </header>
 
-    <main class="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 relative">
+    <main id="main-content" class="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 relative"
+      style="padding-top: 100px;">
       <div id="vista-principal" class="w-full"></div>
     </main>
 
     <!-- PANEL CARRITO LATERAL (ÚNICO: funciona en todos los dispositivos) -->
     <aside id="panel-carrito"
-      class="panel-carrito-lateral fixed top-0 right-0 h-full bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-40 flex flex-col">
-
+      class="panel-carrito-lateral fixed top-0 right-0 h-full bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
       <div
         class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-chapinAzul text-white flex-shrink-0">
         <h2 class="font-semibold text-sm">🛒 Carrito de compras</h2>
@@ -159,7 +153,30 @@
       </div>
     </aside>
 
-    <!-- ELIMINADO: panel-carrito-movil (bottom sheet) completamente -->
+    <!-- Panel de menú hamburguesa móvil -->
+    <aside id="panel-menu-movil"
+      class="fixed top-0 left-0 h-full w-[300px] max-w-[80vw] bg-white shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col">
+      <div class="flex items-center justify-between p-4 bg-chapinAzul text-white">
+        <h2 class="font-semibold text-sm">Menú</h2>
+        <button id="cerrar-menu-movil" class="text-2xl leading-none">×</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-delgada text-sm">
+        <div id="menu-movil-categorias-container">
+          <button id="btn-categorias-movil"
+            class="flex items-center justify-between w-full font-medium py-2 border-b border-slate-200 text-chapinAzul">
+            <span>🧭 Categorías</span>
+            <span id="flecha-categorias-movil" class="transition-transform duration-300">▾</span>
+          </button>
+          <div id="submenu-categorias-movil" class="hidden pl-4 space-y-1 text-slate-700 text-xs mt-1"></div>
+        </div>
+        <button id="menu-movil-promociones"
+          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja">Promociones</button>
+        <button id="menu-movil-todas-categorias"
+          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja">Todas las categorías</button>
+        <button id="menu-movil-temporadas"
+          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja">Temporadas</button>
+      </div>
+    </aside>
 
     <!-- BOTÓN FLOTANTE PARA ABRIR CARRITO - ÚNICO punto de acceso -->
     <button id="boton-flotante-carrito"
@@ -179,41 +196,90 @@
       </div>
     </div>
 
-    <footer class="bg-chapinAzul text-white mt-4">
-      <div class="max-w-6xl mx-auto px-3 sm:px-4 py-6 text-xs sm:text-sm">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <h3 class="font-semibold mb-2">ChapínMarket</h3>
-            <p class="text-white/70">Tu mercado en línea 100% guatemalteco. Envíos a toda Guatemala.</p>
+    <footer class="bg-chapinAzul text-white">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-sm">
+
+          <!-- Columna 1: Marca y redes sociales -->
+          <div class="space-y-4">
+            <div class="flex items-center gap-2 font-bold text-xl">
+              <img src="img/logo.png?v=2" alt="ChapínMarket" class="h-8 sm:h-10 object-contain" />
+              <span>Chapín<span class="text-chapinNaranja">Market</span></span>
+            </div>
+            <p class="text-white/70 text-xs leading-relaxed">
+              Tu mercado en línea 100% guatemalteco. Productos de calidad con envíos a toda Guatemala. Compra fácil,
+              rápido y seguro.
+            </p>
+            <div class="flex items-center gap-3 pt-1">
+              <a href="#" class="social-icon" aria-label="WhatsApp">
+                <img src="https://cdn-icons-png.flaticon.com/256/3536/3536445.png" alt="WhatsApp"
+                  class="w-5 h-5 object-contain" />
+              </a>
+              <a href="#" class="social-icon" aria-label="Facebook">
+                <img src="https://cdn-icons-png.freepik.com/512/220/220200.png" alt="Facebook"
+                  class="w-5 h-5 object-contain" />
+              </a>
+              <a href="#" class="social-icon" aria-label="YouTube">
+                <img src="https://cdn-icons-png.flaticon.com/512/174/174883.png" alt="YouTube"
+                  class="w-5 h-5 object-contain" />
+              </a>
+            </div>
           </div>
-          <div>
-            <h3 class="font-semibold mb-2">Ayuda</h3>
-            <ul class="space-y-1 text-white/70">
-              <li>Centro de soporte</li>
-              <li>Preguntas frecuentes</li>
-              <li>Devoluciones</li>
+
+          <!-- Columna 2: Enlaces útiles -->
+          <div class="space-y-3">
+            <h4 class="font-semibold text-base border-b border-white/20 pb-1">Enlaces Útiles</h4>
+            <ul class="space-y-2 text-white/70 text-xs">
+              <li><a href="#" class="footer-link">Inicio</a></li>
+              <li><a href="#" class="footer-link">Categorías</a></li>
+              <li><a href="#" class="footer-link">Promociones</a></li>
+              <li><a href="#" class="footer-link">Temporadas</a></li>
+              <li><a href="#" class="footer-link">Mi Carrito</a></li>
+              <li><a href="#" class="footer-link">Iniciar Sesión</a></li>
             </ul>
           </div>
-          <div>
-            <h3 class="font-semibold mb-2">Nosotros</h3>
-            <ul class="space-y-1 text-white/70">
-              <li>Quiénes somos</li>
-              <li>Trabaja con nosotros</li>
-              <li>Proveedores</li>
+
+          <!-- Columna 3: Contacto -->
+          <div class="space-y-3">
+            <h4 class="font-semibold text-base border-b border-white/20 pb-1">Contacto</h4>
+            <ul class="space-y-2 text-white/70 text-xs">
+              <li class="flex items-start gap-2">
+                <span class="text-chapinNaranja text-lg leading-none mt-0.5">📍</span>
+                <span>Ciudad de Guatemala, Zona 1</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-chapinNaranja text-lg leading-none mt-0.5">📞</span>
+                <span>+502 1234-5678</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-chapinNaranja text-lg leading-none mt-0.5">✉️</span>
+                <span>wruizg1@miumg.edu.gt</span>
+              </li>
             </ul>
           </div>
-          <div>
-            <h3 class="font-semibold mb-2">Legal</h3>
-            <ul class="space-y-1 text-white/70">
-              <li>Términos y condiciones</li>
-              <li>Política de privacidad</li>
+
+          <!-- Columna 4: Información Académica -->
+          <div class="space-y-3">
+            <h4 class="font-semibold text-base border-b border-white/20 pb-1">Proyecto Académico</h4>
+            <div class="flex items-center gap-3 mb-3">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Escudo_de_la_universidad_Mariano_G%C3%A1lvez_Guatemala.svg/1280px-Escudo_de_la_universidad_Mariano_G%C3%A1lvez_Guatemala.svg.png"
+                alt="UMG" class="w-10 h-10 object-contain opacity-90" />
+              <span class="text-xs font-medium text-white/80">Universidad Mariano Gálvez</span>
+            </div>
+            <ul class="space-y-1.5 text-white/70 text-xs">
+              <li class="hover:text-white transition-colors">Walter Josué Ruiz Gálvez — 0910-20-10484</li>
+              <li class="hover:text-white transition-colors">Emily Roxana Noemí López — 0900-21-8707</li>
+              <li class="hover:text-white transition-colors">Bryan Gerardo Ascuc de Paz — 5990-22-11062</li>
             </ul>
           </div>
         </div>
-        <div class="pt-4 mt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span class="text-white/60">© <span id="anio-actual"></span> ChapínMarket. Todos los derechos
-            reservados.</span>
-          <span class="text-white/60 text-xs">Mock frontend listo para integración con Java Servlets + Oracle.</span>
+
+        <!-- Barra inferior -->
+        <div
+          class="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/50">
+          <span>© <span id="anio-actual"></span> ChapínMarket. Todos los derechos reservados.</span>
+          <span class="hidden sm:inline">Mock frontend para integración con Java Servlets + Oracle</span>
         </div>
       </div>
     </footer>

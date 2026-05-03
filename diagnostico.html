@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Diagnóstico Frontend - ChapínMarket v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-entry {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .log-error {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .log-success {
+            background-color: #dcfce7;
+            border-left: 4px solid #22c55e;
+        }
+
+        .log-info {
+            background-color: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .log-warning {
+            background-color: #fed7aa;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .log-request {
+            background-color: #e0e7ff;
+            border-left: 4px solid #6366f1;
+        }
+
+        .log-response {
+            background-color: #f3e8ff;
+            border-left: 4px solid #a855f7;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 8px;
+            font-size: 11px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .metric-card-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .metric-card-warning {
+            background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
+        }
+
+        .metric-card-error {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 p-4">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-2xl font-bold text-chapinAzul">🔧 Diagnóstico Frontend - ChapínMarket v2.0</h1>
+                    <p class="text-gray-600">Herramienta completa de depuración de comunicación con el backend</p>
+                    <p id="timestamp" class="text-xs text-gray-400 mt-1"></p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-exportar"
+                        class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600">📤 Exportar
+                        Log</button>
+                    <button id="btn-limpiar"
+                        class="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600">🗑️ Limpiar
+                        Log</button>
+                    <button id="btn-refrescar"
+                        class="bg-chapinAzul text-white px-4 py-2 rounded-lg text-sm hover:bg-chapinAzulClaro">🔄
+                        Refrescar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métricas -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div id="status-sesion" class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl mb-2">🔄</div>
+                <div class="font-semibold">Verificando...</div>
+                <div class="text-xs text-gray-500">Estado de sesión</div>
+            </div>
+            <div id="status-backend" class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl mb-2">🔄</div>
+                <div class="font-semibold">Verificando...</div>
+                <div class="text-xs text-gray-500">Backend</div>
+            </div>
+            <div id="status-categorias" class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl mb-2">🔄</div>
+                <div class="font-semibold">Verificando...</div>
+                <div class="text-xs text-gray-500">Categorías</div>
+            </div>
+            <div id="status-productos" class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-2xl mb-2">🔄</div>
+                <div class="font-semibold">Verificando...</div>
+                <div class="text-xs text-gray-500">Productos</div>
+            </div>
+        </div>
+
+        <!-- Botones de prueba -->
+        <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
+            <h2 class="font-semibold text-lg mb-3">🧪 Pruebas Rápidas</h2>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <button id="btn-test-auth"
+                    class="bg-chapinAzul text-white px-3 py-2 rounded-lg text-sm hover:bg-chapinAzulClaro">🔐 Test
+                    /auth/me</button>
+                <button id="btn-test-perfil"
+                    class="bg-chapinAzul text-white px-3 py-2 rounded-lg text-sm hover:bg-chapinAzulClaro">👤 Test
+                    /perfil</button>
+                <button id="btn-test-direcciones"
+                    class="bg-chapinAzul text-white px-3 py-2 rounded-lg text-sm hover:bg-chapinAzulClaro">📍 Test
+                    /direcciones</button>
+                <button id="btn-test-tarjetas"
+                    class="bg-chapinAzul text-white px-3 py-2 rounded-lg text-sm hover:bg-chapinAzulClaro">💳 Test
+                    /tarjetas</button>
+                <button id="btn-test-carrito"
+                    class="bg-chapinAzul text-white px-3 py-2 rounded-lg text-sm hover:bg-chapinAzulClaro">🛒 Test
+                    /carrito</button>
+            </div>
+        </div>
+
+        <!-- Pruebas de escritura -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h2 class="font-semibold text-lg mb-3">📝 Prueba Agregar Dirección</h2>
+                <form id="test-direccion-form" class="space-y-3">
+                    <input type="text" id="test-linea1" placeholder="Línea 1 (Dirección) *"
+                        class="w-full border rounded-lg px-3 py-2" required>
+                    <input type="text" id="test-etiqueta" placeholder="Etiqueta (Casa/Trabajo)" value="Casa"
+                        class="w-full border rounded-lg px-3 py-2">
+                    <div class="flex gap-2">
+                        <input type="text" id="test-ciudad" placeholder="Ciudad" value="Ciudad de Guatemala"
+                            class="flex-1 border rounded-lg px-3 py-2">
+                        <input type="text" id="test-departamento" placeholder="Departamento" value="Guatemala"
+                            class="flex-1 border rounded-lg px-3 py-2">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-chapinNaranja text-white px-4 py-2 rounded-lg hover:bg-orange-500">➕ Agregar
+                        Dirección</button>
+                </form>
+                <div id="result-direccion" class="hidden mt-3 p-3 rounded-lg text-sm"></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h2 class="font-semibold text-lg mb-3">💳 Prueba Agregar Tarjeta</h2>
+                <form id="test-tarjeta-form" class="space-y-3">
+                    <input type="text" id="test-titular" placeholder="Titular *"
+                        class="w-full border rounded-lg px-3 py-2" required>
+                    <input type="text" id="test-numero" placeholder="Número de tarjeta *"
+                        class="w-full border rounded-lg px-3 py-2" required>
+                    <div class="flex gap-2">
+                        <input type="text" id="test-vencimiento" placeholder="Vencimiento (MM/AA)"
+                            class="flex-1 border rounded-lg px-3 py-2">
+                        <select id="test-tipo" class="flex-1 border rounded-lg px-3 py-2">
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="VISA">VISA</option>
+                            <option value="Mastercard">Mastercard</option>
+                        </select>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-chapinNaranja text-white px-4 py-2 rounded-lg hover:bg-orange-500">➕ Agregar
+                        Tarjeta</button>
+                </form>
+                <div id="result-tarjeta" class="hidden mt-3 p-3 rounded-lg text-sm"></div>
+            </div>
+        </div>
+
+        <!-- Intentar Login -->
+        <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
+            <h2 class="font-semibold text-lg mb-3">🔐 Probar Login</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <input type="text" id="login-correo" placeholder="Correo" value="wruizg1@miumg.edu.gt"
+                        class="w-full border rounded-lg px-3 py-2 mb-2">
+                    <input type="password" id="login-password" placeholder="Contraseña"
+                        class="w-full border rounded-lg px-3 py-2 mb-2">
+                    <button id="btn-login"
+                        class="w-full bg-chapinAzul text-white px-4 py-2 rounded-lg hover:bg-chapinAzulClaro">🔐 Iniciar
+                        Sesión</button>
+                </div>
+                <div>
+                    <button id="btn-logout"
+                        class="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">🚪 Cerrar
+                        Sesión</button>
+                    <p class="text-xs text-gray-500 mt-2">Credenciales de prueba: wruizg1@miumg.edu.gt / tu contraseña
+                    </p>
+                </div>
+            </div>
+            <div id="result-login" class="hidden mt-3 p-3 rounded-lg text-sm"></div>
+        </div>
+
+        <!-- Log de diagnóstico -->
+        <div class="bg-white rounded-lg shadow-lg p-4">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="font-semibold text-lg">📝 Log de Diagnóstico</h2>
+                <div class="flex gap-2">
+                    <span class="text-xs text-gray-500" id="log-count">0 entradas</span>
+                    <button id="btn-clear-log" class="text-xs text-red-500 hover:text-red-700">Limpiar</button>
+                </div>
+            </div>
+            <div id="log-container"
+                class="bg-gray-900 text-gray-100 rounded-lg p-3 h-96 overflow-y-auto font-mono text-xs">
+                <div class="log-entry log-info">🟢 Diagnóstico iniciado...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost/chapinmarket-backend/public';
+        let logEntries = [];
+
+        // Actualizar timestamp
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = { timestamp, message, type };
+            logEntries.push(entry);
+
+            const div = document.createElement('div');
+            div.className = `log-entry log-${type}`;
+            div.textContent = `[${timestamp}] ${message}`;
+            document.getElementById('log-container').appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            console.log(`[${type.toUpperCase()}]`, message);
+
+            document.getElementById('log-count').textContent = logEntries.length + ' entradas';
+        }
+
+        function exportLog() {
+            const data = JSON.stringify(logEntries, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `diagnostico_${new Date().toISOString()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('📁 Log exportado', 'success');
+        }
+
+        async function testEndpoint(endpoint, method = 'GET', body = null) {
+            const url = `${BASE_URL}${endpoint}`;
+            addLog(`🌐 ${method} ${url}`, 'request');
+
+            const options = {
+                method: method,
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const startTime = Date.now();
+            try {
+                const response = await fetch(url, options);
+                const duration = Date.now() - startTime;
+
+                let data = null;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    data = { raw_text: text.substring(0, 500) };
+                }
+
+                addLog(`📡 Respuesta en ${duration}ms - Status: ${response.status}`, response.ok ? 'success' : 'error');
+
+                return { ok: response.ok, status: response.status, data, duration };
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`, 'error');
+                return { ok: false, error: error.message };
+            }
+        }
+
+        async function actualizarMetricas() {
+            // Verificar sesión
+            const auth = await testEndpoint('/auth/me');
+            const sesionDiv = document.getElementById('status-sesion');
+            if (auth.ok && auth.data && auth.data.success) {
+                const user = auth.data.data;
+                sesionDiv.innerHTML = `
+                    <div class="text-2xl mb-2">✅</div>
+                    <div class="font-semibold text-sm">${user.nombre || 'Usuario'}</div>
+                    <div class="text-xs text-gray-500">ID: ${user.id}</div>
+                    <div class="text-xs text-green-600">Sesión activa</div>
+                `;
+                addLog(`✅ Sesión activa: ${user.nombre} (ID: ${user.id})`, 'success');
+            } else {
+                sesionDiv.innerHTML = `
+                    <div class="text-2xl mb-2">❌</div>
+                    <div class="font-semibold">No hay sesión</div>
+                    <div class="text-xs text-red-500">Inicia sesión</div>
+                `;
+                addLog('⚠️ No hay sesión activa', 'warning');
+            }
+
+            // Verificar backend
+            const productos = await testEndpoint('/productos');
+            const backendDiv = document.getElementById('status-backend');
+            if (productos.ok) {
+                backendDiv.innerHTML = `
+                    <div class="text-2xl mb-2">✅</div>
+                    <div class="font-semibold">Online</div>
+                    <div class="text-xs text-gray-500">${productos.duration}ms</div>
+                `;
+                addLog('✅ Backend accesible', 'success');
+            } else {
+                backendDiv.innerHTML = `
+                    <div class="text-2xl mb-2">❌</div>
+                    <div class="font-semibold">Offline</div>
+                    <div class="text-xs text-red-500">Verificar conexión</div>
+                `;
+                addLog('❌ Backend no responde', 'error');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('btn-exportar').addEventListener('click', exportLog);
+        document.getElementById('btn-limpiar').addEventListener('click', () => {
+            document.getElementById('log-container').innerHTML = '<div class="log-entry log-info">🟢 Log limpiado...</div>';
+            logEntries = [];
+            document.getElementById('log-count').textContent = '0 entradas';
+        });
+        document.getElementById('btn-refrescar').addEventListener('click', () => {
+            actualizarMetricas();
+            addLog('🔄 Diagnóstico refrescado', 'info');
+        });
+
+        document.getElementById('btn-test-auth').addEventListener('click', () => testEndpoint('/auth/me'));
+        document.getElementById('btn-test-perfil').addEventListener('click', () => testEndpoint('/perfil'));
+        document.getElementById('btn-test-direcciones').addEventListener('click', () => testEndpoint('/perfil/direcciones'));
+        document.getElementById('btn-test-tarjetas').addEventListener('click', () => testEndpoint('/perfil/tarjetas'));
+        document.getElementById('btn-test-carrito').addEventListener('click', () => testEndpoint('/carrito'));
+
+        // Login manual
+        document.getElementById('btn-login').addEventListener('click', async () => {
+            const correo = document.getElementById('login-correo').value;
+            const password = document.getElementById('login-password').value;
+            const resultDiv = document.getElementById('result-login');
+
+            addLog(`🔐 Intentando login con: ${correo}`);
+            const result = await testEndpoint('/auth/login', 'POST', { correo, password });
+
+            if (result.ok && result.data && result.data.success) {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-green-100 text-green-800';
+                resultDiv.innerHTML = `✅ Login exitoso como: ${result.data.data.nombre}`;
+                addLog(`✅ Login exitoso: ${result.data.data.nombre}`, 'success');
+                await actualizarMetricas();
+            } else {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = `❌ Error: ${result.data?.message || 'Credenciales incorrectas'}`;
+                addLog(`❌ Login fallido: ${result.data?.message || 'Error desconocido'}`, 'error');
+            }
+            resultDiv.classList.remove('hidden');
+            setTimeout(() => resultDiv.classList.add('hidden'), 5000);
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            const result = await testEndpoint('/auth/logout', 'POST');
+            if (result.ok) {
+                addLog('✅ Sesión cerrada', 'success');
+                await actualizarMetricas();
+            } else {
+                addLog('❌ Error al cerrar sesión', 'error');
+            }
+        });
+
+        // Probar agregar dirección
+        document.getElementById('test-direccion-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                linea1: document.getElementById('test-linea1').value,
+                etiqueta: document.getElementById('test-etiqueta').value || 'Casa',
+                ciudad: document.getElementById('test-ciudad').value || 'Ciudad de Guatemala',
+                departamento: document.getElementById('test-departamento').value || 'Guatemala',
+                esPredeterminada: false
+            };
+
+            const resultDiv = document.getElementById('result-direccion');
+            if (!data.linea1) {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = '❌ La dirección es requerida';
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+
+            addLog(`📝 Agregando dirección: ${data.linea1}`);
+            const result = await testEndpoint('/perfil/direcciones', 'POST', data);
+
+            if (result.ok) {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-green-100 text-green-800';
+                resultDiv.innerHTML = '✅ Dirección agregada exitosamente';
+                addLog('✅ Dirección agregada', 'success');
+                document.getElementById('test-linea1').value = '';
+                await actualizarMetricas();
+            } else {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = `❌ Error: ${result.data?.message || 'No se pudo agregar'}`;
+                addLog(`❌ Error agregando dirección: ${result.data?.message}`, 'error');
+            }
+            resultDiv.classList.remove('hidden');
+            setTimeout(() => resultDiv.classList.add('hidden'), 5000);
+        });
+
+        // Probar agregar tarjeta
+        document.getElementById('test-tarjeta-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const numero = document.getElementById('test-numero').value.replace(/\s/g, '');
+            const data = {
+                titular: document.getElementById('test-titular').value,
+                numeroEnmascarado: numero,
+                tipo: document.getElementById('test-tipo').value,
+                vencimiento: document.getElementById('test-vencimiento').value
+            };
+
+            const resultDiv = document.getElementById('result-tarjeta');
+            if (!data.titular || !data.numeroEnmascarado) {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = '❌ Titular y número son requeridos';
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+
+            addLog(`💳 Agregando tarjeta para: ${data.titular}`);
+            const result = await testEndpoint('/perfil/tarjetas', 'POST', data);
+
+            if (result.ok) {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-green-100 text-green-800';
+                resultDiv.innerHTML = '✅ Tarjeta agregada exitosamente';
+                addLog('✅ Tarjeta agregada', 'success');
+                document.getElementById('test-titular').value = '';
+                document.getElementById('test-numero').value = '';
+                document.getElementById('test-vencimiento').value = '';
+                await actualizarMetricas();
+            } else {
+                resultDiv.className = 'mt-3 p-3 rounded-lg text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = `❌ Error: ${result.data?.message || 'No se pudo agregar'}`;
+                addLog(`❌ Error agregando tarjeta: ${result.data?.message}`, 'error');
+            }
+            resultDiv.classList.remove('hidden');
+            setTimeout(() => resultDiv.classList.add('hidden'), 5000);
+        });
+
+        // Inicializar
+        addLog('🚀 Diagnóstico frontend v2.0 iniciado');
+        actualizarMetricas();
+
+        // Probar diagnóstico PHP
+        setTimeout(async () => {
+            try {
+                const resp = await fetch('http://localhost/chapinmarket-backend/public/diagnostico.php', {
+                    credentials: 'include'
+                });
+                if (resp.ok) {
+                    addLog('✅ Endpoint PHP accesible', 'success');
+                    addLog('💡 Visita: http://localhost/chapinmarket-backend/public/diagnostico.php', 'info');
+                }
+            } catch (e) {
+                addLog(`⚠️ Diagnóstico PHP no accesible: ${e.message}`, 'warning');
+            }
+        }, 1000);
+    </script>
+</body>
+
+</html>

@@ -1,4 +1,4 @@
-/* styles.css - Versión unificada con un solo carrito lateral */
+/* styles.css - Versión con portada rediseñada y carrito lateral unificado */
 
 .scrollbar-delgada::-webkit-scrollbar {
     width: 6px;
@@ -9,6 +9,7 @@
     border-radius: 9999px;
 }
 
+/* ========== OVERLAY DE CARGA ========== */
 .overlay-carga {
     position: fixed;
     inset: 0;
@@ -28,6 +29,7 @@
     place-items: center;
     background: linear-gradient(135deg, rgba(0, 51, 102, 0.95), rgba(255, 140, 50, 0.95));
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    animation: flotar 2s ease-in-out infinite;
 }
 
 .spinner-chapin::after {
@@ -46,7 +48,288 @@
     }
 }
 
-/* ========== ESTILOS PARA EL CARRITO LATERAL ÚNICO ========== */
+@keyframes flotar {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* ========== HERO PORTADA REDISEÑADA ========== */
+.hero-wrapper {
+    position: relative;
+    isolation: isolate;
+}
+
+.hero-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255, 140, 50, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    animation: orbita 15s linear infinite;
+}
+
+.hero-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(0, 95, 163, 0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    animation: orbita 20s linear infinite reverse;
+}
+
+@keyframes orbita {
+    from {
+        transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: rotate(180deg) scale(1.1);
+    }
+
+    to {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+.hero-container {
+    position: relative;
+    z-index: 1;
+    min-height: 480px;
+}
+
+.hero-slide {
+    transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Máscara de transparencia para la imagen: izquierda transparente → derecha opaca */
+.hero-image-wrapper {
+    position: relative;
+}
+
+.hero-image-mask {
+    background: linear-gradient(to right,
+            rgba(0, 51, 102, 1) 0%,
+            rgba(0, 51, 102, 0.85) 15%,
+            rgba(0, 51, 102, 0.5) 30%,
+            rgba(0, 51, 102, 0.15) 50%,
+            rgba(0, 51, 102, 0) 70%);
+    pointer-events: none;
+}
+
+/* Icono grande del slide */
+.hero-icon-grande {
+    animation: flotarIcono 4s ease-in-out infinite;
+    flex-shrink: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    width: 6rem !important;
+    height: 6rem !important;
+}
+
+@media (min-width: 640px) {
+    .hero-icon-grande {
+        width: 7rem !important;
+        height: 7rem !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .hero-icon-grande {
+        width: 8rem !important;
+        height: 8rem !important;
+    }
+}
+
+@keyframes flotarIcono {
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    25% {
+        transform: translateY(-6px) rotate(2deg);
+    }
+
+    75% {
+        transform: translateY(4px) rotate(-2deg);
+    }
+}
+
+/* Dots de navegación */
+.hero-dot {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+/* Badges informativos */
+.info-badge {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.info-badge:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.info-badge-icon {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    animation: pulsoSuave 3s ease-in-out infinite;
+}
+
+@keyframes pulsoSuave {
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+}
+
+/* ================= HERO BADGES CORREGIDO ================= */
+
+/* Base (TODOS LOS TAMAÑOS) */
+.hero-badges-container {
+    position: absolute;
+    bottom: 20px;
+    /* 🔥 Control real de posición */
+    left: 0;
+    right: 0;
+    z-index: 20;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    justify-content: center;
+}
+
+/* ================= ALTURA DEL HERO ================= */
+
+/* 📱 MÓVIL: Mayor altura para evitar compresión */
+@media (max-width: 768px) {
+    .hero-container {
+        min-height: 400px !important;
+        height: auto;
+    }
+}
+
+/* 📲 TABLET: altura intermedia */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .hero-container {
+        min-height: 520px;
+    }
+}
+
+/* 💻 DESKTOP: altura estándar */
+@media (min-width: 1025px) {
+    .hero-container {
+        min-height: 520px;
+    }
+}
+
+/* ================= BREAKPOINTS CLAROS ================= */
+
+/* 📱 MÓVIL */
+@media (max-width: 768px) {
+    .hero-badges-container {
+        bottom: 40px;
+        /* 🔥 Más arriba en móvil */
+        justify-content: center;
+    }
+
+    .hero-container {
+        min-height: 750px;
+        /* 🔥 Mucho más espacio real */
+    }
+
+    .hero-badges-container .info-badge {
+        flex: 1 1 auto;
+        min-width: 90px;
+        justify-content: center;
+    }
+
+    .hero-wrapper {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hero-image-wrapper {
+        height: 200px !important;
+    }
+
+    /* Ícono a la izquierda del título en móvil */
+    .hero-slide .flex-1.z-10.flex {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+    }
+
+    /* El ícono debe ir primero (a la izquierda del título) */
+    .hero-slide .hero-icon-grande {
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+        order: -1;
+        flex-shrink: 0;
+    }
+
+    /* Contenedor del título + descripción se expande */
+    .hero-slide>.flex-1.z-10.flex>.flex-1.space-y-1 {
+        flex: 1;
+        text-align: left !important;
+    }
+}
+
+/* 📲 TABLET: Elementos informativos ligeramente más arriba, centrados */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .hero-badges-container {
+        bottom: 30px;
+        justify-content: center;
+    }
+}
+
+/* 💻 DESKTOP: Elementos informativos ligeramente más arriba, alineados a la derecha */
+@media (min-width: 1025px) {
+    .hero-badges-container {
+        bottom: 30px;
+        justify-content: flex-end;
+    }
+}
+
+/* ========== CARRITO LATERAL ========== */
 .panel-carrito-lateral {
     display: flex;
     flex-direction: column;
@@ -55,8 +338,8 @@
     width: 380px;
     max-width: 90vw;
     transform: translateX(100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -5px 0 30px rgba(0, 0, 0, 0.15);
 }
 
 .panel-carrito-lateral:not(.translate-x-full) {
@@ -131,18 +414,27 @@
     font-size: 0.75rem;
 }
 
-/* Botón flotante - único punto de acceso */
+/* Botón flotante del carrito */
 .boton-flotante-carrito {
-    animation: pulse 2s infinite;
+    animation: pulse-carrito 2s infinite;
+    transition: transform 0.2s;
 }
 
-@keyframes pulse {
+.boton-flotante-carrito:hover {
+    transform: scale(1.1);
+}
+
+.boton-flotante-carrito:active {
+    transform: scale(0.95);
+}
+
+@keyframes pulse-carrito {
     0% {
         box-shadow: 0 0 0 0 rgba(255, 140, 50, 0.7);
     }
 
     70% {
-        box-shadow: 0 0 0 10px rgba(255, 140, 50, 0);
+        box-shadow: 0 0 0 14px rgba(255, 140, 50, 0);
     }
 
     100% {
@@ -150,10 +442,7 @@
     }
 }
 
-/* ============================================ */
-/* === SECCIÓN COMPRA CON CONFIANZA - ESTRUCTURA CORREGIDA === */
-/* ============================================ */
-
+/* ========== SECCIÓN COMPRA CON CONFIANZA ========== */
 .confianza-container {
     background: linear-gradient(to bottom, #ffffff, #f8fafc);
     border-top: 2px solid #e2e8f0;
@@ -197,7 +486,6 @@
     flex-shrink: 0;
 }
 
-/* ÍCONO: tamaño fijo 24x24 píxeles */
 .confianza-icono {
     width: 24px !important;
     height: 24px !important;
@@ -231,86 +519,153 @@
     line-height: 1.3;
 }
 
-/* Responsive: el panel lateral se adapta a móviles y tablets */
+/* ========== RESPONSIVE CARRITO ========== */
 @media (max-width: 1023px) {
     .panel-carrito-lateral {
-        width: 85vw;
-        max-width: 85vw;
+        width: 340px;
+        max-width: 80vw;
     }
 }
 
 @media (max-width: 640px) {
     .panel-carrito-lateral {
-        width: 100vw;
-        max-width: 100vw;
+        width: 300px;
+        max-width: 90vw;
     }
 }
 
-/* ========== NUEVA PORTADA ========== */
-.hero-slide {
-    transition: opacity 0.5s ease, transform 0.5s ease;
+/* Reducir padding interno del panel para eliminar espacios innecesarios */
+.panel-carrito-lateral .flex-shrink-0:first-child {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+#lista-carrito-panel {
+    padding: 12px;
+}
+.panel-carrito-lateral > .flex-shrink-0.border-t {
+    padding: 12px;
+}
+.confianza-container {
+    padding: 12px 12px 16px 12px;
+}
+
+/* ========== DROPDOWN CATEGORÍAS (CLICK) ========== */
+#dropdown-categorias.dropdown-abierto {
+    display: grid;
+    /* Asegura que sea grid */
     opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+#dropdown-categorias:not(.dropdown-abierto) {
+    pointer-events: none;
+}
+
+/* Flecha rotada */
+.rotate-arrow {
+    transform: rotate(180deg);
+}
+
+/* ========== PANEL MENÚ MÓVIL ========== */
+#panel-menu-movil.menu-abierto {
     transform: translateX(0);
 }
 
-.hero-slide.hero-hidden {
-    opacity: 0;
-    transform: translateX(20px);
-    pointer-events: none;
+/* Ajuste responsive para que el panel no tape contenido en pantallas grandes */
+@media (min-width: 768px) {
+    #panel-menu-movil {
+        display: none !important;
+    }
+}
+
+/* ========== HEADER CON SCROLL INTELIGENTE ========== */
+#header-principal.header-oculto {
+    transform: translateY(-100%);
+}
+
+/* Ajuste para cuando el header está fixed, aseguramos que no tape contenido */
+body {
+    padding-top: 0;
+    /* se ajusta dinámicamente con JS */
+}
+
+/* ========== FOOTER ESTILOS ========== */
+.social-icon {
+    transition: transform 0.3s ease, filter 0.3s ease, background 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.social-icon:hover {
+    transform: scale(1.15);
+    background: rgba(255, 255, 255, 0.25);
+    filter: brightness(1.2);
+}
+
+/* Enlaces con subrayado animado */
+.footer-link {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 2px;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.footer-link::after {
+    content: '';
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
+    width: 0;
+    height: 1px;
+    background-color: #ff8c32;
+    transition: width 0.3s ease;
+}
+
+.footer-link:hover {
+    color: #ff8c32;
+}
+
+.footer-link:hover::after {
     width: 100%;
 }
 
-.hero-container {
-    position: relative;
-    min-height: 280px;
+/* ========== PERFIL TABS MEJORADOS ========== */
+.perfil-tab-activo {
+    background-color: #003366 !important;
+    color: #ffffff !important;
 }
 
-/* Máscara de transparencia para la imagen (izquierda transparente -> derecha opaca) */
-.hero-image-mask {
-    mask-image: linear-gradient(to right, transparent 0%, black 40%, black 100%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%, black 100%);
-    transition: mask-image 0.3s;
-}
-
-/* Elementos informativos */
-.info-badge {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    border-radius: 2rem;
-    padding: 0.5rem 1rem;
-    transition: all 0.2s;
-}
-
-.info-badge:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-2px);
-}
-
-.info-badge-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Responsive: en móvil los badges se van abajo */
+/* En móviles: subrayado en lugar de fondo */
 @media (max-width: 640px) {
-    .hero-badges-container {
-        position: static !important;
-        margin-top: 1.5rem;
-        justify-content: center;
-        flex-wrap: wrap;
+    .perfil-tab {
+        border-bottom: 3px solid transparent;
+        border-radius: 0 !important;
+        background-color: transparent !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
     }
-
-    .hero-badges-container .info-badge {
-        flex: 1 1 auto;
-        min-width: 100px;
+    
+    .perfil-tab-activo {
+        background-color: transparent !important;
+        color: #003366 !important;
+        border-bottom: 3px solid #ff8c32 !important;
+        font-weight: 700;
+    }
+    
+    .perfil-tab:not(.perfil-tab-activo) {
+        color: #64748b !important;
+        border-bottom: 3px solid transparent;
     }
 }
