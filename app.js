@@ -20,6 +20,7 @@ const estadoApp = {
 };
 
 let costoEnvio = 0;
+const productosAgregandoCarrito = new Set();
 
 // Fuerza la ocultación del overlay después de 10 segundos (por si algo falla)
 let forceHideTimeout = setTimeout(() => {
@@ -934,6 +935,8 @@ function gridProductos(listaProductos, opciones = {}) {
     const precioFormateado = precio.toFixed(2);
     const promo = p.temporadaIds && Array.isArray(p.temporadaIds) && p.temporadaIds.length > 0;
     const img = obtenerImagenProducto(p);
+    const stockDisponible = obtenerStockProducto(p);
+    const estaAgotado = stockDisponible <= 0;
 
     return `
           <div class="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
@@ -946,9 +949,11 @@ function gridProductos(listaProductos, opciones = {}) {
                 ${p.nombre || 'Producto sin nombre'}
               </button>
               <div class="text-chapinAzul font-semibold mb-1">Q${precioFormateado}</div>
-              <button data-agregar-carrito="${p.id}" class="mt-auto bg-chapinAzul text-white rounded-full py-1 text-[11px] hover:bg-chapinAzulClaro">
-                Agregar al carrito
-              </button>
+              ${estaAgotado ? productoAgotadoHTML('mt-auto') : `
+                <button data-agregar-carrito="${p.id}" class="mt-auto bg-chapinAzul text-white rounded-full py-1 text-[11px] hover:bg-chapinAzulClaro">
+                  Agregar al carrito
+                </button>
+              `}
             </div>
           </div>`;
   }).join('')}
@@ -1014,6 +1019,22 @@ function configurarEventosBotonesAgregarCarrito() {
   });
 }
 
+function obtenerStockProducto(producto) {
+  if (!producto) return 0;
+  const stock = producto.stock !== undefined ? producto.stock : producto.STOCK;
+  const stockNumerico = Number(stock);
+  return Number.isFinite(stockNumerico) ? Math.max(0, stockNumerico) : 0;
+}
+
+function obtenerCantidadProductoEnCarrito(productoId) {
+  const item = estadoApp.carrito?.find(i => Number(i.productoId) === Number(productoId));
+  return item ? Number(item.cantidad) || 0 : 0;
+}
+
+function productoAgotadoHTML(clasesExtra = '') {
+  return `<p class="font-bold text-red-600 text-sm sm:text-base ${clasesExtra}">AGOTADO</p>`;
+}
+
 function vistaDetalleProducto(idProducto) {
   const producto = estadoApp.productos.find((p) => p.id === idProducto);
   if (!producto) {
@@ -1038,6 +1059,8 @@ function vistaDetalleProducto(idProducto) {
 
   const tieneImagenes = imagenes.length > 0 && imagenes[0];
   const imagenPrincipal = tieneImagenes ? imagenes[0] : '';
+  const stockDisponible = obtenerStockProducto(producto);
+  const estaAgotado = stockDisponible <= 0;
 
   return `
     <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1060,20 +1083,22 @@ function vistaDetalleProducto(idProducto) {
           ${promo ? `<span class="text-xs bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Promoción ${temporadaNombre ? ' - ' + temporadaNombre : ''}</span>` : ''}
         </div>
         <p class="text-slate-700">${producto.descripcion}</p>
-        <p class="text-xs text-slate-500">Stock disponible: ${producto.stock}</p>
-        <div class="flex items-center gap-2">
-          <label class="text-xs" for="detalle-cantidad">Cantidad:</label>
-          <input id="detalle-cantidad" type="number" min="1" max="${producto.stock}" value="1"
-                 class="w-20 border rounded-md px-2 py-1 text-xs" />
-        </div>
-        <div class="flex flex-wrap gap-2 mt-2">
-          <button id="detalle-agregar-carrito" data-id-producto="${producto.id}" class="flex-1 bg-chapinAzul text-white py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-chapinAzulClaro">
-            Agregar al carrito
-          </button>
-          <button id="detalle-comprar-ahora" data-id-producto="${producto.id}" class="flex-1 bg-chapinNaranja text-white py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-orange-500">
-            Comprar ahora
-          </button>
-        </div>
+        ${estaAgotado ? productoAgotadoHTML('mt-2') : `
+          <p class="text-xs text-slate-500">Stock disponible: ${stockDisponible}</p>
+          <div class="flex items-center gap-2">
+            <label class="text-xs" for="detalle-cantidad">Cantidad:</label>
+            <input id="detalle-cantidad" type="number" min="1" max="${stockDisponible}" value="1"
+                   class="w-20 border rounded-md px-2 py-1 text-xs" />
+          </div>
+          <div class="flex flex-wrap gap-2 mt-2">
+            <button id="detalle-agregar-carrito" data-id-producto="${producto.id}" class="flex-1 bg-chapinAzul text-white py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-chapinAzulClaro">
+              Agregar al carrito
+            </button>
+            <button id="detalle-comprar-ahora" data-id-producto="${producto.id}" class="flex-1 bg-chapinNaranja text-white py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-orange-500">
+              Comprar ahora
+            </button>
+          </div>
+        `}
       </div>
     </section>
   `;
@@ -1083,8 +1108,7 @@ function configurarEventosVistaDetalleProducto() {
   const miniaturas = document.querySelectorAll('[data-miniatura-index]');
   const imagenPrincipal = document.getElementById('detalle-imagen-principal');
   const btnAgregarElem = document.getElementById('detalle-agregar-carrito');
-  if (!btnAgregarElem) return;
-  const productoId = parseInt(btnAgregarElem.dataset.idProducto);
+  const productoId = parseInt(btnAgregarElem?.dataset.idProducto || window.location.hash.split('/').pop());
   const producto = estadoApp.productos.find((p) => p.id === productoId);
   if (!producto) return;
 
@@ -1103,18 +1127,21 @@ function configurarEventosVistaDetalleProducto() {
   const inputCantidad = document.getElementById('detalle-cantidad');
   if (btnAgregar && inputCantidad) {
     btnAgregar.addEventListener('click', () => {
-      const cantidad = Math.max(1, parseInt(inputCantidad.value) || 1);
+      const stockDisponible = obtenerStockProducto(producto);
+      const cantidad = Math.min(stockDisponible, Math.max(1, parseInt(inputCantidad.value) || 1));
+      inputCantidad.value = cantidad;
       agregarAlCarrito(productoId, cantidad);
     });
   }
 
   const btnComprarAhora = document.getElementById('detalle-comprar-ahora');
   if (btnComprarAhora && inputCantidad) {
-    btnComprarAhora.addEventListener('click', () => {
-      const cantidad = Math.max(1, parseInt(inputCantidad.value) || 1);
-      agregarAlCarrito(productoId, cantidad).then(() => {
-        window.location.hash = '#/checkout';
-      });
+    btnComprarAhora.addEventListener('click', async () => {
+      const stockDisponible = obtenerStockProducto(producto);
+      const cantidad = Math.min(stockDisponible, Math.max(1, parseInt(inputCantidad.value) || 1));
+      inputCantidad.value = cantidad;
+      const agregado = await agregarAlCarrito(productoId, cantidad);
+      if (agregado) window.location.hash = '#/checkout';
     });
   }
 }
@@ -1159,6 +1186,9 @@ function vistaCarritoCompleto() {
       const producto = item.producto;
       if (!producto) return '';
       itemsValidos++;
+      const productoCatalogo = estadoApp.productos.find(p => Number(p.id) === Number(item.productoId));
+      const stockDisponible = obtenerStockProducto(productoCatalogo || producto);
+      const estaAgotado = stockDisponible <= 0;
       const subtotalProducto = producto.precio * item.cantidad;
       totalGeneral += subtotalProducto;
       if (item.seleccionado) subtotalSeleccionados += subtotalProducto;
@@ -1201,15 +1231,17 @@ function vistaCarritoCompleto() {
                             ${producto.nombre}
                         </button>
                         <div class="text-chapinAzul font-bold my-1">Q${producto.precio.toFixed(2)}</div>
+                        ${estaAgotado ? productoAgotadoHTML('my-1') : `<p class="text-xs text-slate-500">Stock disponible: ${stockDisponible}</p>`}
                         <div class="flex items-center gap-2 mt-2">
                             <button data-carrito-decrementar="${item.productoId}" 
                                     class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition"
                                     ${item.cantidad <= 1 ? 'disabled' : ''}>-</button>
-                            <input type="number" value="${item.cantidad}" min="1" max="${producto.stock}"
-                                   data-carrito-cantidad="${item.productoId}" class="w-12 text-center border rounded-md text-sm" />
+                            <input type="number" value="${item.cantidad}" min="1" max="${stockDisponible}"
+                                   data-carrito-cantidad="${item.productoId}" class="w-12 text-center border rounded-md text-sm"
+                                   ${estaAgotado ? 'disabled' : ''} />
                             <button data-carrito-incrementar="${item.productoId}"
                                     class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition"
-                                    ${item.cantidad >= producto.stock ? 'disabled' : ''}>+</button>
+                                    ${estaAgotado || item.cantidad >= stockDisponible ? 'disabled' : ''}>+</button>
                             <button data-carrito-eliminar="${item.productoId}" 
                                     class="ml-auto text-red-500 hover:text-red-700 text-xs">🗑️ Eliminar</button>
                         </div>
@@ -1395,6 +1427,64 @@ function configurarEventosVistaCheckout() {
   if (!btnPago) return;
 
   btnPago.addEventListener('click', async () => {
+    if (btnPago.disabled) return;
+
+    if (!estadoApp.usuarioActual || !estadoApp.usuarioActual.id) {
+      mostrarModal('Inicia sesion', '<p class="text-sm">Debes iniciar sesion para procesar el pago.</p>');
+      return;
+    }
+
+    const productosSeleccionados = estadoApp.carrito.filter(item => item.seleccionado);
+    if (!productosSeleccionados.length) {
+      mostrarModal('Carrito vacio', '<p class="text-sm">Selecciona al menos un producto para pagar.</p>');
+      return;
+    }
+
+    btnPago.disabled = true;
+    btnPago.classList.add('opacity-60', 'cursor-not-allowed');
+
+    mostrarModalCargaPago();
+
+    const pagoPromise = (async () => {
+      const datosPago = await obtenerDatosPagoCheckout();
+      if (!datosPago.ok) {
+        return { ok: false, mensaje: datosPago.mensaje };
+      }
+
+      return llamarApi('/public/pago', {
+        method: 'POST',
+        body: JSON.stringify(datosPago.payload)
+      });
+    })();
+
+    const [resp] = await Promise.all([
+      pagoPromise,
+      esperar(5000)
+    ]);
+
+    cerrarModal();
+
+    if (resp.ok) {
+      window.location.hash = '/';
+      
+      setTimeout(() => {
+        mostrarModal(
+          '✅ Hemos recibido tu pedido exitosamente!',
+          '<p class="text-sm">Gracias por tu pedido! Puedes ver tus pedidos en tu perfil/pedidos</p>'
+        );
+
+        setTimeout(() => {
+          cerrarModal();
+          window.location.reload();
+        }, 1500);
+      }, 150);
+    } else {
+      btnPago.disabled = false;
+      btnPago.classList.remove('opacity-60', 'cursor-not-allowed');
+      mostrarModal('Pago no procesado', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo procesar el pago. Intenta nuevamente.'}</p>`);
+    }
+    return;
+
     const subtotal = estadoApp.carrito
       .filter(item => item.seleccionado)
       .reduce((sum, item) => {
@@ -1405,7 +1495,7 @@ function configurarEventosVistaCheckout() {
     const envio = 25;
     const total = subtotal + envio;
 
-    const resp = await llamarApi('/public/pago', {
+    const respMock = await llamarApi('/public/pago', {
       method: 'POST',
       body: JSON.stringify({
         monto: total,
@@ -1446,6 +1536,106 @@ function configurarEventosVistaCheckout() {
   }
 }
 
+function esperar(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function mostrarModalCargaPago() {
+  mostrarModal('', `
+    <div class="flex flex-col items-center justify-center py-8 text-center">
+      <div class="w-12 h-12 border-4 border-slate-200 border-t-chapinNaranja rounded-full animate-spin mb-4"></div>
+      <p id="texto-loading-pago" class="text-sm font-semibold text-chapinAzul">Ingresando pedido...</p>
+    </div>
+  `);
+
+  const texto = document.getElementById('texto-loading-pago');
+  if (!texto) return;
+
+  setTimeout(() => { texto.textContent = 'Ingresando transaccion...'; }, 2000);
+  setTimeout(() => { texto.textContent = 'Validando pago...'; }, 4000);
+}
+
+async function obtenerDatosPagoCheckout() {
+  const perfilResp = await llamarApi('/public/perfil', { method: 'GET' });
+  if (perfilResp.ok && perfilResp.datos) {
+    estadoApp.usuarioActual = {
+      ...estadoApp.usuarioActual,
+      ...perfilResp.datos,
+      direcciones: perfilResp.datos.direcciones || estadoApp.usuarioActual?.direcciones || [],
+      tarjetas: perfilResp.datos.tarjetas || estadoApp.usuarioActual?.tarjetas || []
+    };
+    guardarSesionEnLocalStorage();
+  }
+
+  const carritoResp = await llamarApi('/public/carrito', { method: 'GET' });
+  const datosCarrito = carritoResp.datos?.data || carritoResp.datos || {};
+  const carritoId = datosCarrito.carrito_id || datosCarrito.carritoId;
+
+  if (!carritoResp.ok || !carritoId) {
+    return { ok: false, mensaje: 'No se pudo obtener el carrito activo.' };
+  }
+
+  const direccion = obtenerDireccionCheckout();
+  if (!direccion || !direccion.id) {
+    return { ok: false, mensaje: 'Necesitas tener una direccion guardada en tu perfil para procesar el pedido.' };
+  }
+
+  const tarjeta = obtenerTarjetaCheckout();
+  if (!tarjeta.ok) {
+    return tarjeta;
+  }
+
+  return {
+    ok: true,
+    payload: {
+      usuarioId: estadoApp.usuarioActual.id,
+      carritoId: carritoId,
+      direccionId: direccion.id,
+      titular: tarjeta.titular,
+      numeroTarjeta: tarjeta.numeroTarjeta,
+      vencimiento: tarjeta.vencimiento
+    }
+  };
+}
+
+function obtenerDireccionCheckout() {
+  const direcciones = estadoApp.usuarioActual?.direcciones || [];
+  return direcciones.find(d => Number(d.esPredeterminada) === 1) || direcciones[0] || null;
+}
+
+function obtenerTarjetaCheckout() {
+  const selectTarjeta = document.getElementById('select-tarjeta');
+  const tarjetaSeleccionada = selectTarjeta ? selectTarjeta.value : '';
+
+  if (tarjetaSeleccionada === 'nueva') {
+    const titular = document.getElementById('nueva-titular')?.value.trim();
+    const numeroTarjeta = document.getElementById('nueva-numero')?.value.trim();
+    const vencimiento = document.getElementById('nueva-vencimiento')?.value.trim();
+
+    if (!titular || !numeroTarjeta || !vencimiento) {
+      return { ok: false, mensaje: 'Completa titular, numero y vencimiento de la tarjeta.' };
+    }
+
+    return { ok: true, titular, numeroTarjeta, vencimiento };
+  }
+
+  if (!tarjetaSeleccionada) {
+    return { ok: false, mensaje: 'Selecciona una tarjeta guardada o ingresa una nueva.' };
+  }
+
+  const tarjeta = estadoApp.usuarioActual?.tarjetas?.find(t => String(t.id) === String(tarjetaSeleccionada));
+  if (!tarjeta) {
+    return { ok: false, mensaje: 'No se encontro la tarjeta seleccionada.' };
+  }
+
+  return {
+    ok: true,
+    titular: tarjeta.titular || estadoApp.usuarioActual.nombre || 'Cliente',
+    numeroTarjeta: tarjeta.numeroEnmascarado || tarjeta.numeroTarjeta || tarjetaSeleccionada,
+    vencimiento: tarjeta.vencimiento || ''
+  };
+}
+
 function configurarEventosVistaCarritoCompleto() {
   const contenedor = document.getElementById('vista-principal');
   if (!contenedor) return;
@@ -1456,12 +1646,18 @@ function configurarEventosVistaCarritoCompleto() {
       const productoId = parseInt(inputCantidad.dataset.carritoCantidad);
       let cantidad = parseInt(inputCantidad.value) || 1;
       const producto = estadoApp.productos.find(p => p.id === productoId);
-      if (producto && cantidad > producto.stock) {
-        cantidad = producto.stock;
-        inputCantidad.value = cantidad;
-        mostrarModal('Stock limitado', `<p class="text-sm">Solo tenemos ${producto.stock} unidades disponibles.</p>`);
+      const stockDisponible = obtenerStockProducto(producto);
+      if (!producto || stockDisponible <= 0) {
+        mostrarModal('Producto agotado', '<p class="text-sm text-red-600 font-semibold">AGOTADO</p>');
+        renderizarVista();
+        return;
       }
-      cantidad = Math.max(1, cantidad);
+      if (cantidad > stockDisponible) {
+        cantidad = stockDisponible;
+        inputCantidad.value = cantidad;
+        mostrarModal('Stock limitado', `<p class="text-sm">Solo tenemos ${stockDisponible} unidades disponibles.</p>`);
+      }
+      cantidad = Math.max(1, Math.min(cantidad, stockDisponible));
       await actualizarCantidadCarrito(productoId, cantidad);
       actualizarValoresCarritoEnTiempoReal();
       return;
@@ -1494,11 +1690,14 @@ function configurarEventosVistaCarritoCompleto() {
       const productoId = parseInt(btnIncrementar.dataset.carritoIncrementar);
       const item = estadoApp.carrito.find(i => i.productoId === productoId);
       const producto = estadoApp.productos.find(p => p.id === productoId);
-      if (item && producto && item.cantidad < producto.stock) {
+      const stockDisponible = obtenerStockProducto(producto);
+      if (!producto || stockDisponible <= 0) {
+        mostrarModal('Producto agotado', '<p class="text-sm text-red-600 font-semibold">AGOTADO</p>');
+      } else if (item && producto && item.cantidad < stockDisponible) {
         const nuevaCantidad = item.cantidad + 1;
         await actualizarCantidadCarrito(productoId, nuevaCantidad);
         actualizarValoresCarritoEnTiempoReal();
-      } else if (producto && item && item.cantidad >= producto.stock) {
+      } else if (producto && item && item.cantidad >= stockDisponible) {
         mostrarModal('Stock limitado', `<p class="text-sm">No hay más stock disponible de este producto.</p>`);
       }
       return;
@@ -2978,13 +3177,36 @@ function configurarEventosVistaTemporadas() {
 }
 
 async function agregarAlCarrito(productoId, cantidad) {
+  const producto = estadoApp.productos.find(p => Number(p.id) === Number(productoId));
+  const stockDisponible = obtenerStockProducto(producto);
+  const cantidadSolicitada = Math.max(1, Number(cantidad) || 1);
+  const cantidadActual = obtenerCantidadProductoEnCarrito(productoId);
+
+  if (!producto || stockDisponible <= 0) {
+    mostrarModal('Producto agotado', '<p class="text-sm text-red-600 font-semibold">AGOTADO</p>');
+    return false;
+  }
+
+  if (cantidadActual + cantidadSolicitada > stockDisponible) {
+    const unidadesRestantes = Math.max(0, stockDisponible - cantidadActual);
+    mostrarModal(
+      'Stock limitado',
+      `<p class="text-sm">Solo puedes agregar ${unidadesRestantes} unidad(es) m&aacute;s de "${producto.nombre}". Stock disponible: ${stockDisponible}.</p>`
+    );
+    return false;
+  }
+
+  const claveProducto = Number(productoId);
+  if (productosAgregandoCarrito.has(claveProducto)) return false;
+  productosAgregandoCarrito.add(claveProducto);
+
   try {
     const resp = await llamarApi('/public/carrito', {
       method: 'POST',
       body: JSON.stringify({
         usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
         productoId,
-        cantidad
+        cantidad: cantidadSolicitada
       })
     });
 
@@ -3007,27 +3229,49 @@ async function agregarAlCarrito(productoId, cantidad) {
       actualizarIconoCarrito();
       actualizarPanelCarrito();
 
-      const producto = estadoApp.productos.find(p => p.id === productoId);
       if (producto) {
-        mostrarModal('Producto agregado', `<p class="text-sm">${producto.nombre} (x${cantidad}) añadido al carrito.</p>`);
+        mostrarModal('Producto agregado', `<p class="text-sm">${producto.nombre} (x${cantidadSolicitada}) a&ntilde;adido al carrito.</p>`);
       }
+      return true;
     } else {
       mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo agregar el producto'}</p>`);
+      return false;
     }
   } catch (e) {
     console.error('Error agregando al carrito', e);
     mostrarModal('Error', '<p class="text-sm">No se pudo conectar con el servidor.</p>');
+    return false;
+  } finally {
+    productosAgregandoCarrito.delete(claveProducto);
   }
 }
 
 async function actualizarCantidadCarrito(productoId, cantidad) {
+  const producto = estadoApp.productos.find(p => Number(p.id) === Number(productoId));
+  const stockDisponible = obtenerStockProducto(producto);
+  const cantidadSolicitada = Math.max(1, Number(cantidad) || 1);
+
+  if (!producto || stockDisponible <= 0) {
+    mostrarModal('Producto agotado', '<p class="text-sm text-red-600 font-semibold">AGOTADO</p>');
+    if (estadoApp.vistaActual === 'carrito') renderizarVista();
+    actualizarPanelCarrito();
+    return false;
+  }
+
+  if (cantidadSolicitada > stockDisponible) {
+    mostrarModal('Stock limitado', `<p class="text-sm">Solo tenemos ${stockDisponible} unidades disponibles.</p>`);
+    if (estadoApp.vistaActual === 'carrito') renderizarVista();
+    actualizarPanelCarrito();
+    return false;
+  }
+
   try {
     const resp = await llamarApi('/public/carrito', {
       method: 'PUT',
       body: JSON.stringify({
         usuarioId: estadoApp.usuarioActual ? estadoApp.usuarioActual.id : null,
         productoId,
-        cantidad
+        cantidad: cantidadSolicitada
       })
     });
 
@@ -3052,16 +3296,19 @@ async function actualizarCantidadCarrito(productoId, cantidad) {
       if (estadoApp.vistaActual === 'carrito') {
         renderizarVista();
       }
+      return true;
     } else {
       mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'Stock insuficiente'}</p>`);
       await sincronizarCarritoDesdeApi();
       if (estadoApp.vistaActual === 'carrito') {
         renderizarVista();
       }
+      return false;
     }
   } catch (e) {
     console.error('Error actualizando cantidad', e);
     mostrarModal('Error', '<p class="text-sm">No se pudo actualizar la cantidad.</p>');
+    return false;
   }
 }
 
@@ -3239,6 +3486,9 @@ function actualizarPanelCarrito() {
       const producto = item.producto;
       if (!producto) return '';
 
+      const productoCatalogo = estadoApp.productos.find(p => Number(p.id) === Number(item.productoId));
+      const stockDisponible = obtenerStockProducto(productoCatalogo || producto);
+      const estaAgotado = stockDisponible <= 0;
       const subtotalItem = producto.precio * item.cantidad;
       subtotal += subtotalItem;
 
@@ -3266,15 +3516,16 @@ function actualizarPanelCarrito() {
           <div class="flex-1 min-w-0">
             <h4 class="font-medium text-xs truncate">${producto.nombre}</h4>
             <p class="text-chapinAzul font-semibold text-sm mt-1">Q${producto.precio.toFixed(2)}</p>
+            ${estaAgotado ? productoAgotadoHTML('mt-1') : `<p class="text-[11px] text-slate-500 mt-1">Stock disponible: ${stockDisponible}</p>`}
             <div class="flex items-center justify-between mt-2">
               <div class="cantidad-control">
                 <button data-cantidad-decrementar="${item.productoId}" 
                   ${item.cantidad <= 1 ? 'disabled' : ''}
                   class="text-slate-600 hover:text-chapinAzul">−</button>
                 <input type="number" value="${item.cantidad}" data-cantidad-input="${item.productoId}"
-                  min="1" max="${producto.stock}" class="text-xs" />
+                  min="1" max="${stockDisponible}" class="text-xs" ${estaAgotado ? 'disabled' : ''} />
                 <button data-cantidad-incrementar="${item.productoId}"
-                  ${item.cantidad >= producto.stock ? 'disabled' : ''}
+                  ${estaAgotado || item.cantidad >= stockDisponible ? 'disabled' : ''}
                   class="text-slate-600 hover:text-chapinAzul">+</button>
               </div>
               <span class="font-bold text-chapinAzul text-sm">Q${subtotalItem.toFixed(2)}</span>
@@ -3317,14 +3568,17 @@ async function manejarIncremento(e) {
   const productoId = parseInt(btn.dataset.cantidadIncrementar);
   const item = estadoApp.carrito.find(i => i.productoId === productoId);
   const producto = estadoApp.productos.find(p => p.id === productoId);
+  const stockDisponible = obtenerStockProducto(producto);
 
-  if (item && producto && item.cantidad < producto.stock) {
+  if (!producto || stockDisponible <= 0) {
+    mostrarModal('Producto agotado', '<p class="text-sm text-red-600 font-semibold">AGOTADO</p>');
+  } else if (item && producto && item.cantidad < stockDisponible) {
     const nuevaCantidad = item.cantidad + 1;
     await actualizarCantidadCarrito(productoId, nuevaCantidad);
     actualizarPanelCarrito();
-  } else if (producto && item && item.cantidad >= producto.stock) {
+  } else if (producto && item && item.cantidad >= stockDisponible) {
     mostrarModal('Stock limitado',
-      `<p class="text-sm">Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}".</p>`);
+      `<p class="text-sm">Solo hay ${stockDisponible} unidades disponibles de "${producto.nombre}".</p>`);
   }
 }
 
@@ -3346,15 +3600,22 @@ async function manejarCambioCantidad(e) {
   const productoId = parseInt(input.dataset.cantidadInput);
   let cantidad = parseInt(input.value) || 1;
   const producto = estadoApp.productos.find(p => p.id === productoId);
+  const stockDisponible = obtenerStockProducto(producto);
 
-  if (producto && cantidad > producto.stock) {
-    cantidad = producto.stock;
-    input.value = cantidad;
-    mostrarModal('Stock limitado',
-      `<p class="text-sm">Cantidad ajustada a ${producto.stock} unidades (máximo disponible).</p>`);
+  if (!producto || stockDisponible <= 0) {
+    mostrarModal('Producto agotado', '<p class="text-sm text-red-600 font-semibold">AGOTADO</p>');
+    actualizarPanelCarrito();
+    return;
   }
 
-  cantidad = Math.max(1, Math.min(cantidad, producto?.stock || 1));
+  if (cantidad > stockDisponible) {
+    cantidad = stockDisponible;
+    input.value = cantidad;
+    mostrarModal('Stock limitado',
+      `<p class="text-sm">Cantidad ajustada a ${stockDisponible} unidades (m&aacute;ximo disponible).</p>`);
+  }
+
+  cantidad = Math.max(1, Math.min(cantidad, stockDisponible));
   if (cantidad !== (estadoApp.carrito.find(i => i.productoId === productoId)?.cantidad || 0)) {
     await actualizarCantidadCarrito(productoId, cantidad);
     actualizarPanelCarrito();
