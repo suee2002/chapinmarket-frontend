@@ -398,6 +398,10 @@ function interpretarHash(hash) {
     return { nombre: 'perfil', parametros: {} };
   }
 
+  if (partes[0] === 'pedido' && partes[1]) {
+    return { nombre: 'pedido', parametros: { id: parseInt(partes[1]) } };
+  }
+
   if (partes[0] === 'admin') {
     return { nombre: 'admin', parametros: {} };
   }
@@ -453,6 +457,10 @@ function renderizarVista() {
     case 'perfil':
       contenedor.innerHTML = vistaPerfil();
       configurarEventosVistaPerfil();
+      break;
+    case 'pedido':
+      contenedor.innerHTML = vistaDetallePedido(estadoApp.parametrosVista.id);
+      configurarEventosVistaDetallePedido(estadoApp.parametrosVista.id);
       break;
     case 'admin':
       contenedor.innerHTML = vistaAdmin();
@@ -2252,7 +2260,14 @@ function tabTarjetas(tarjetas) {
   `;
 }
 
-function tabPedidos(pedidos) {
+function formatearFechaPedido(fecha) {
+  if (!fecha) return 'Fecha no disponible';
+  const date = new Date(fecha);
+  if (Number.isNaN(date.getTime())) return fecha;
+  return date.toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function obtenerEstiloEstadoPedido(estado) {
   const estadosEstilos = {
     'pendiente': 'bg-yellow-100 text-yellow-700',
     'enviado': 'bg-blue-100 text-blue-700',
@@ -2260,20 +2275,30 @@ function tabPedidos(pedidos) {
     'cancelado': 'bg-red-100 text-red-700'
   };
 
+  return estadosEstilos[String(estado || '').toLowerCase()] || 'bg-slate-100 text-slate-600';
+}
+
+function tabPedidos(pedidos) {
+
   const lista = pedidos && pedidos.length
     ? pedidos.map(p => `
-        <div class="flex items-center justify-between p-4 border border-slate-200 rounded-xl mb-3 hover:shadow-md transition">
+        <div data-ver-pedido="${p.id}" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-slate-200 rounded-xl mb-3 hover:shadow-md hover:border-chapinAzul/30 transition cursor-pointer">
           <div class="flex items-center gap-4">
             <span class="text-2xl">📦</span>
             <div>
               <p class="font-semibold">Pedido #${p.id}</p>
-              <p class="text-xs text-slate-500">${new Date(p.fecha).toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p class="text-xs text-slate-500">${formatearFechaPedido(p.fecha)}</p>
               <p class="text-xs text-slate-400">${p.cantidadItems || 0} artículo(s)</p>
             </div>
           </div>
-          <div class="text-right">
-            <p class="font-bold text-chapinAzul">Q${(p.total || 0).toFixed(2)}</p>
-            <span class="text-xs px-2 py-1 rounded-full ${estadosEstilos[p.estado] || 'bg-slate-100'}">${p.estado || 'pendiente'}</span>
+          <div class="flex items-center justify-between sm:justify-end gap-3 sm:text-right">
+            <button data-ver-pedido="${p.id}" class="bg-chapinAzul text-white rounded-full px-4 py-2 text-xs font-semibold hover:bg-chapinAzulClaro transition">
+              Ver detalle
+            </button>
+            <div>
+              <p class="font-bold text-chapinAzul">Q${(p.total || 0).toFixed(2)}</p>
+              <span class="text-xs px-2 py-1 rounded-full ${obtenerEstiloEstadoPedido(p.estado)}">${p.estado || 'pendiente'}</span>
+            </div>
           </div>
         </div>
       `).join('')
@@ -2285,6 +2310,152 @@ function tabPedidos(pedidos) {
       <div id="lista-pedidos">${lista}</div>
     </div>
   `;
+}
+
+function vistaDetallePedido(idPedido) {
+  if (!estadoApp.usuarioActual) {
+    window.location.hash = '#/login';
+    return '';
+  }
+
+  return `
+    <section class="max-w-5xl mx-auto space-y-4" id="detalle-pedido" data-pedido-id="${idPedido}">
+      <button id="volver-a-pedidos" class="text-chapinAzul hover:text-chapinNaranja text-sm font-semibold">
+        ← Volver a mis pedidos
+      </button>
+      <div id="detalle-pedido-contenido" class="bg-white rounded-xl shadow-sm p-6">
+        <div class="animate-pulse space-y-4">
+          <div class="h-5 bg-slate-200 rounded w-48"></div>
+          <div class="h-4 bg-slate-100 rounded w-full"></div>
+          <div class="h-24 bg-slate-100 rounded"></div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderDetallePedido(pedido) {
+  const items = Array.isArray(pedido.items) ? pedido.items : [];
+  const subtotal = Number(pedido.subtotalItems ?? items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0));
+  const total = Number(pedido.total) || 0;
+  const diferencia = Math.max(0, total - subtotal);
+
+  const itemsHTML = items.length
+    ? items.map(item => {
+      const producto = item.producto || {};
+      const imagen = producto.imagen || obtenerImagenProducto(producto);
+      const cantidad = Number(item.cantidad) || 0;
+      const precioUnitario = Number(item.precioUnitario) || 0;
+      const subtotalItem = Number(item.subtotal) || cantidad * precioUnitario;
+
+      return `
+        <div class="flex gap-3 p-3 border border-slate-100 rounded-lg">
+          <div class="w-16 h-16 rounded-md bg-slate-100 overflow-hidden flex-shrink-0">
+            <img src="${imagen}" alt="${producto.nombre || 'Producto'}" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-sm">${producto.nombre || 'Producto'}</p>
+            <p class="text-xs text-slate-500 mt-1">Cantidad vendida: ${cantidad}</p>
+            <p class="text-xs text-slate-500">Precio unitario: Q${precioUnitario.toFixed(2)}</p>
+          </div>
+          <div class="text-right font-semibold text-chapinAzul whitespace-nowrap">
+            Q${subtotalItem.toFixed(2)}
+          </div>
+        </div>
+      `;
+    }).join('')
+    : '<p class="text-sm text-slate-400 text-center py-8">Este pedido no tiene items registrados.</p>';
+
+  return `
+    <div class="space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h1 class="text-xl font-bold">Pedido #${pedido.id}</h1>
+          <p class="text-sm text-slate-500">${formatearFechaPedido(pedido.fecha)}</p>
+        </div>
+        <span class="self-start text-xs px-3 py-1 rounded-full font-semibold ${obtenerEstiloEstadoPedido(pedido.estado)}">
+          ${pedido.estado || 'pendiente'}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+        <div class="border border-slate-100 rounded-lg p-3">
+          <p class="text-xs text-slate-500">Método de pago</p>
+          <p class="font-semibold">${pedido.metodoPago || 'No disponible'}</p>
+        </div>
+        <div class="border border-slate-100 rounded-lg p-3">
+          <p class="text-xs text-slate-500">Productos</p>
+          <p class="font-semibold">${pedido.cantidadItems || items.length} item(s), ${pedido.totalUnidades || 0} unidad(es)</p>
+        </div>
+        <div class="border border-slate-100 rounded-lg p-3">
+          <p class="text-xs text-slate-500">Total del pedido</p>
+          <p class="font-semibold text-chapinAzul">Q${total.toFixed(2)}</p>
+        </div>
+      </div>
+
+      ${pedido.direccionEnvio ? `
+        <div class="border border-slate-100 rounded-lg p-3 text-sm">
+          <p class="text-xs text-slate-500">Dirección de envío</p>
+          <p class="font-medium">${pedido.direccionEnvio}</p>
+        </div>
+      ` : ''}
+
+      <div>
+        <h2 class="font-semibold mb-3">Productos del pedido</h2>
+        <div class="space-y-3">${itemsHTML}</div>
+      </div>
+
+      <div class="border-t pt-4 space-y-2 text-sm max-w-sm ml-auto">
+        <p class="flex justify-between"><span>Subtotal items:</span><span>Q${subtotal.toFixed(2)}</span></p>
+        <p class="flex justify-between"><span>Cargos/envío:</span><span>${diferencia > 0 ? 'Q' + diferencia.toFixed(2) : 'Incluido'}</span></p>
+        <p class="flex justify-between text-lg font-bold text-chapinAzul"><span>Total:</span><span>Q${total.toFixed(2)}</span></p>
+      </div>
+    </div>
+  `;
+}
+
+function configurarTabPedidos() {
+  document.querySelectorAll('[data-ver-pedido]').forEach((elem) => {
+    elem.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = parseInt(elem.dataset.verPedido);
+      if (id) window.location.hash = `#/pedido/${id}`;
+    });
+  });
+}
+
+async function configurarEventosVistaDetallePedido(idPedido) {
+  const btnVolver = document.getElementById('volver-a-pedidos');
+  if (btnVolver) {
+    btnVolver.addEventListener('click', () => {
+      window.location.hash = '#/perfil';
+      setTimeout(() => {
+        const tabPedidosBtn = document.querySelector('[data-tab="pedidos"]');
+        if (tabPedidosBtn) tabPedidosBtn.click();
+      }, 100);
+    });
+  }
+
+  const contenedor = document.getElementById('detalle-pedido-contenido');
+  if (!contenedor) return;
+
+  const uid = estadoApp.usuarioActual?.id || JSON.parse(localStorage.getItem('chapinMarket_usuario') || '{}')?.id;
+  const url = uid ? `/public/pedidos/${idPedido}?uid=${uid}` : `/public/pedidos/${idPedido}`;
+  const resp = await llamarApi(url, { method: 'GET' });
+
+  if (resp.ok && resp.datos) {
+    contenedor.innerHTML = renderDetallePedido(resp.datos);
+  } else {
+    contenedor.innerHTML = `
+      <div class="text-center py-10">
+        <p class="text-sm text-red-600 mb-3">${resp.mensaje || 'No se pudo cargar el detalle del pedido.'}</p>
+        <button onclick="window.location.hash='#/perfil'" class="bg-chapinAzul text-white rounded-full px-5 py-2 text-sm font-semibold">
+          Volver al perfil
+        </button>
+      </div>
+    `;
+  }
 }
 
 function configurarEventosVistaPerfil() {
@@ -2355,6 +2526,10 @@ function configurarEventosVistaPerfil() {
             case 'tarjetas':
               tabContent.innerHTML = tabTarjetas(estadoApp.usuarioActual.tarjetas);
               configurarTabTarjetas();
+              break;
+            case 'pedidos':
+              tabContent.innerHTML = tabPedidos(estadoApp.usuarioActual.pedidos);
+              configurarTabPedidos();
               break;
             case 'datos':
               tabContent.innerHTML = tabDatosPersonales(estadoApp.usuarioActual);
@@ -2465,6 +2640,10 @@ async function recargarDatosPerfilYActualizarTab(tabName) {
             tabContent.innerHTML = tabTarjetas(estadoApp.usuarioActual.tarjetas);
             configurarTabTarjetas();
             break;
+          case 'pedidos':
+            tabContent.innerHTML = tabPedidos(estadoApp.usuarioActual.pedidos);
+            configurarTabPedidos();
+            break;
           case 'datos':
             tabContent.innerHTML = tabDatosPersonales(estadoApp.usuarioActual);
             configurarTabDatos();
@@ -2492,6 +2671,7 @@ function configurarEventosTabActiva(tabName) {
       configurarTabTarjetas();
       break;
     case 'pedidos':
+      configurarTabPedidos();
       // Solo lectura, no requiere eventos específicos
       break;
   }
