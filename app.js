@@ -137,9 +137,9 @@ async function cargarDatosIniciales() {
     const respProductos = await llamarApi('/public/productos').catch(e => ({ ok: false, datos: [] }));
     const respTemporadas = await llamarApi('/public/temporadas').catch(e => ({ ok: false, datos: [] }));
 
-    estadoApp.categorias = respCategorias.ok && Array.isArray(respCategorias.datos.data) ? respCategorias.datos.data : [];
-    estadoApp.productos = respProductos.ok && Array.isArray(respProductos.datos.data) ? respProductos.datos.data : [];
-    estadoApp.temporadas = respTemporadas.ok && Array.isArray(respTemporadas.datos.data) ? respTemporadas.datos.data : [];
+    estadoApp.categorias = respCategorias.ok && Array.isArray(respCategorias.datos) ? respCategorias.datos : [];
+    estadoApp.productos = respProductos.ok && Array.isArray(respProductos.datos) ? respProductos.datos : [];
+    estadoApp.temporadas = respTemporadas.ok && Array.isArray(respTemporadas.datos) ? respTemporadas.datos : [];
 
     if (!respCategorias.ok) console.error('Error cargando categorías:', respCategorias.mensaje);
     if (!respProductos.ok) console.error('Error cargando productos:', respProductos.mensaje);
