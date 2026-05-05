@@ -6,8 +6,10 @@ const estadoApp = {
   temporadas: [],
   usuarioActual: null,
   carrito: [],
+  favoritos: [],
   vistaActual: 'home',
   parametrosVista: {},
+  checkoutDireccionSeleccionadaId: null,
   filtrosProductos: {
     texto: '',
     categoriaId: null,
@@ -15,8 +17,47 @@ const estadoApp = {
     pagina: 1,
     porPagina: 12,
     precioMin: null,
-    precioMax: null
+    precioMax: null,
+    estado: 'todos'
   }
+};
+
+const ICONOS = {
+  buscar: 'https://cdn3d.iconscout.com/3d/premium/thumb/buscar-3d-icon-png-download-4862959.png',
+  usuarioMenu: 'https://marketplace.canva.com/xoaS8/MAHFPdxoaS8/1/tl/canva-3d-user-profile-icon-MAHFPdxoaS8.png',
+  categorias: 'https://static.vecteezy.com/system/resources/previews/028/602/246/non_2x/folder-3d-rendering-icon-illustration-free-png.png',
+  carritoBoton: 'https://cdn3d.iconscout.com/3d/premium/thumb/carrito-de-compras-y-bolsas-3d-icon-png-download-3363951.png',
+  carritoEncabezado: 'https://static.vecteezy.com/system/resources/previews/009/417/132/non_2x/ecommerce-icon-empty-yellow-shopping-cart-3d-illustration-free-png.png',
+  cerrarSesion: 'https://cdn3d.iconscout.com/3d/premium/thumb/cerrar-sesion-3d-icon-png-download-4781277.png',
+  pagarCarrito: 'https://cdn-icons-png.freepik.com/512/10473/10473692.png',
+  usuarioPerfil: 'https://png.pngtree.com/png-vector/20250606/ourmid/pngtree-3d-user-icon-on-blue-circle-isolated-transparent-background-white-png-image_16477931.png',
+  direccion: 'https://cdn-icons-png.flaticon.com/512/10490/10490235.png',
+  seguridad: 'https://png.pngtree.com/png-clipart/20250417/original/pngtree-security-3d-icon-representing-cyber-protection-and-digital-safety-technology-png-image_20768312.png',
+  tarjetaPerfil: 'https://cdn3d.iconscout.com/3d/premium/thumb/tarjeta-de-credito-3d-icon-png-download-13015306.png',
+  pedidos: 'https://cdn3d.iconscout.com/3d/premium/thumb/entrega-de-paquetes-3d-icon-png-download-4874076.png',
+  telefono: 'https://static.vecteezy.com/system/resources/previews/046/893/694/non_2x/3d-phone-icon-3d-phone-symbol-phone-calling-photo-free-png.png',
+  email: 'https://cdn3d.iconscout.com/3d/premium/thumb/correo-electronico-3d-icon-png-download-5523022.png',
+  eliminar: 'https://static.vecteezy.com/system/resources/thumbnails/072/280/600/small/3d-trash-bin-icon-representing-delete-remove-or-clean-functions-png.png',
+  editar: 'https://cdn3d.iconscout.com/3d/premium/thumb/edit-3d-icon-png-download-8231181.png?f=webp',
+  ubicacion: 'https://cdn3d.iconscout.com/3d/premium/thumb/pin-de-ubicacion-3d-icon-png-download-5431307.png',
+  casa: 'https://cdn3d.iconscout.com/3d/premium/thumb/casa-3d-icon-png-download-5073133.png',
+  trabajo: 'https://cdn3d.iconscout.com/3d/premium/thumb/edificio-de-la-empresa-3d-icon-png-download-13354467.png',
+  otroUbicacion: 'https://cdn-icons-png.flaticon.com/512/10740/10740581.png',
+  actualizarContrasena: 'https://cdn3d.iconscout.com/3d/premium/thumb/contrasena-3d-icon-png-download-5114950.png',
+  seguridadTarjeta: 'https://cdn3d.iconscout.com/3d/premium/thumb/escudo-de-seguridad-cibernetica-3d-icon-png-download-8270466.png',
+  estrella: 'https://cdn-icons-png.flaticon.com/512/1828/1828884.png',
+  corazon: 'https://cdn-icons-png.freepik.com/512/9815/9815428.png',
+  promociones: 'https://cdn3d.iconscout.com/3d/premium/thumb/promocion-3d-icon-png-download-10660367.png',
+  todasCategorias: 'https://cdn3d.iconscout.com/3d/premium/thumb/cajas-3d-icon-png-download-4936204.png',
+  hamburguesa: 'https://cdn3d.iconscout.com/3d/premium/thumb/boton-de-hamburguesa-3d-icon-png-download-6507182.png',
+  mas: 'https://static.vecteezy.com/system/resources/thumbnails/070/914/700/small/a-3d-rendering-of-a-shiny-blue-plus-sign-isolated-on-transparent-background-png.png',
+  menos: 'https://cdn3d.iconscout.com/3d/premium/thumb/signo-menos-3d-icon-png-download-11537486.png',
+  cerrar: 'https://marketplace.canva.com/hqy4I/MAGFdxhqy4I/1/tl/canva-3d-close-icon-MAGFdxhqy4I.png',
+  // Nuevos íconos de tarjetas
+  tarjetaVisa: 'https://cdn-icons-png.flaticon.com/512/349/349221.png',
+  tarjetaMastercard: 'https://cdn-icons-png.flaticon.com/512/349/349228.png',
+  tarjetaAmericanExpress: 'https://cdn-icons-png.flaticon.com/512/349/349230.png',
+  tarjetaGenerica: 'https://static.vecteezy.com/system/resources/previews/022/187/202/non_2x/credit-card-3d-icon-illustration-png.png',
 };
 
 let costoEnvio = 0;
@@ -35,6 +76,35 @@ let forceHideTimeout = setTimeout(() => {
   }
 }, 10000);
 
+// ================================================================
+// NUEVO SISTEMA DE PANTALLA DE CARGA CON PROGRESO REAL
+// ================================================================
+const totalSteps = 6; // etapas del proceso de inicialización
+let currentStep = 0;
+
+function actualizarProgreso(incremento) {
+  currentStep += incremento;
+  const porcentaje = Math.min((currentStep / totalSteps) * 100, 100);
+
+  const progressBar = document.getElementById('loading-progress-bar');
+  const progressText = document.getElementById('loading-progress-text');
+  if (progressBar && progressText) {
+    progressBar.style.width = `${porcentaje}%`;
+    progressText.textContent = `${Math.round(porcentaje)}%`;
+  }
+}
+
+function ocultarPantallaCarga() {
+  const overlay = document.getElementById('overlay-carga');
+  if (overlay) {
+    overlay.classList.add('cargado'); // activa fade-out
+    // Eliminar del DOM después de la transición
+    overlay.addEventListener('transitionend', () => {
+      overlay.remove();
+    }, { once: true });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // Timeout de seguridad: si el backend no responde en 10 segundos,
   // forzamos la ocultación del overlay y mostramos un mensaje.
@@ -52,34 +122,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     document.getElementById('anio-actual').textContent = new Date().getFullYear();
+    // El overlay ya está visible sin "hidden", se muestra inmediatamente.
+    actualizarProgreso(0); // Arranca en 0% (barra visible desde el HTML)
 
-    window.addEventListener('chapinmarket:carga', (e) => {
-      const overlay = document.getElementById('overlay-carga');
-      if (!overlay) return;
-      if (e.detail && e.detail.activo) {
-        overlay.classList.remove('hidden');
-      } else {
-        overlay.classList.add('hidden');
-      }
-    });
-
+    // Datos iniciales (categorías, productos, temporadas) – primer gran bloque
     await cargarDatosIniciales();
+    actualizarProgreso(2); // avanza 2 etapas (valor: 2/6 ≈ 33%)
+
+    // Restaurar sesión
     await restaurarSesionDesdeApi();
+    actualizarProgreso(1); // 3/6 = 50%
+
+    // Restaurar carrito
     await restaurarCarritoDesdeApi();
+    actualizarProgreso(1); // 4/6 ≈ 66%
 
-    // Forzar actualización visual del carrito después de la carga
-    setTimeout(() => {
-      actualizarIconoCarrito();
-      actualizarPanelCarrito();
-      if (estadoApp.vistaActual === 'carrito') {
-        renderizarVista();
-      }
-    }, 100);
+    // Cargar favoritos
+    await cargarFavoritos();
+    actualizarProgreso(1); // 5/6 ≈ 83%
 
+    // Forzar actualización visual del carrito
+    await new Promise(resolve => setTimeout(resolve, 100));
+    actualizarIconoCarrito();
+    actualizarPanelCarrito();
+    if (estadoApp.vistaActual === 'carrito') {
+      renderizarVista();
+    }
+
+    // Último paso: completamos al 100%
+    actualizarProgreso(1); // 6/6 = 100%
+
+    // Pequeña pausa para que se vea el 100% antes de desvanecer
+    await new Promise(resolve => setTimeout(resolve, 400));
+    ocultarPantallaCarga();
+
+    // Continuar con el resto de la configuración que no depende de carga
     configurarEventosGlobales();
-    configurarHeaderScroll();  // <-- agregar esta línea
+    configurarHeaderScroll();
     configurarRouter();
-
     manejarCambioRuta();
     iniciarHeroRotativo();
   } catch (error) {
@@ -91,10 +171,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-/**
- * Cierra todos los paneles abiertos: carrito, dropdown categorías, menú móvil.
- * Si se pasa un panel para exceptuar, no se cierra (se usa al abrir uno específico).
- */
+function obtenerIconoTarjeta(tipo) {
+  if (!tipo) return ICONOS.tarjetaGenerica;
+  const tipoUpper = tipo.toUpperCase();
+  if (tipoUpper.includes('VISA')) return ICONOS.tarjetaVisa;
+  if (tipoUpper.includes('MASTER')) return ICONOS.tarjetaMastercard;
+  if (tipoUpper.includes('AMEX') || tipoUpper.includes('AMERICAN')) return ICONOS.tarjetaAmericanExpress;
+  return ICONOS.tarjetaGenerica;
+}
+
 function cerrarTodosLosPaneles(excepcion = null) {
   // Carrito
   if (excepcion !== 'carrito') {
@@ -221,6 +306,24 @@ async function cargarDatosIniciales() {
   }
 }
 
+async function cargarFavoritos() {
+  if (!estadoApp.usuarioActual) {
+    estadoApp.favoritos = [];
+    return;
+  }
+  try {
+    const resp = await llamarApi('/public/favoritos', { method: 'GET' });
+    if (resp.ok && Array.isArray(resp.datos)) {
+      estadoApp.favoritos = resp.datos.map(Number);
+    } else {
+      estadoApp.favoritos = [];
+    }
+  } catch (e) {
+    console.error('Error cargando favoritos:', e);
+    estadoApp.favoritos = [];
+  }
+}
+
 async function restaurarSesionDesdeApi() {
   try {
     const resp = await llamarApi('/public/auth/me', { method: 'GET' });
@@ -228,6 +331,7 @@ async function restaurarSesionDesdeApi() {
       estadoApp.usuarioActual = resp.datos;
       guardarSesionEnLocalStorage();
       actualizarTextoUsuario();
+      await cargarFavoritos();
       return;
     }
   } catch (e) {
@@ -271,6 +375,39 @@ async function cargarPerfilCompletoDesdeLocalStorage() {
     };
     guardarSesionEnLocalStorage();
     actualizarTextoUsuario();
+  }
+}
+
+async function toggleFavorito(productoId) {
+  if (!estadoApp.usuarioActual) {
+    mostrarModal('Inicia sesión', '<p class="text-sm">Debes iniciar sesión para guardar favoritos.</p>');
+    return;
+  }
+
+  const id = Number(productoId);
+  const esFavorito = estadoApp.favoritos.includes(id);
+
+  try {
+    if (esFavorito) {
+      const resp = await llamarApi(`/public/favoritos/${id}`, { method: 'DELETE' });
+      if (resp.ok) {
+        estadoApp.favoritos = estadoApp.favoritos.filter(fid => fid !== id);
+      }
+    } else {
+      const resp = await llamarApi('/public/favoritos', {
+        method: 'POST',
+        body: JSON.stringify({ productoId: id })
+      });
+      if (resp.ok) {
+        estadoApp.favoritos.push(id);
+      }
+    }
+    // Re-renderizar la vista actual para reflejar cambios (corazones)
+    if (['home', 'categoria', 'categorias', 'promociones', 'producto'].includes(estadoApp.vistaActual)) {
+      renderizarVista();
+    }
+  } catch (e) {
+    console.error('Error toggle favorito:', e);
   }
 }
 
@@ -410,10 +547,6 @@ function interpretarHash(hash) {
     return { nombre: 'categorias', parametros: {} };
   }
 
-  if (partes[0] === 'temporadas') {
-    return { nombre: 'temporadas', parametros: {} };
-  }
-
   if (partes[0] === 'promociones') {
     return { nombre: 'promociones', parametros: {} };
   }
@@ -470,10 +603,6 @@ function renderizarVista() {
       contenedor.innerHTML = vistaTodasCategorias();
       configurarEventosVistaTodasCategorias();
       break;
-    case 'temporadas':
-      contenedor.innerHTML = vistaTemporadas();
-      configurarEventosVistaTemporadas();
-      break;
     case 'promociones':
       contenedor.innerHTML = vistaPromociones();
       configurarEventosVistaPromociones();
@@ -484,12 +613,6 @@ function renderizarVista() {
 }
 
 const EMOJIS_CATEGORIA = {};
-
-function obtenerEmojiCategoria(nombreCategoria) {
-  const defaultEmojis = ['🧸', '👕', '🏺', '🌮', '🥤', '🏠', '🌿', '🎵', '🎉', '📖'];
-  const indice = nombreCategoria.length % defaultEmojis.length;
-  return defaultEmojis[indice];
-}
 
 function obtenerImagenProducto(producto) {
   if (!producto) return '';
@@ -641,12 +764,10 @@ function construirMegaMenu() {
     const columna = columnas[indice % 3];
     const hijos = estadoApp.categorias.filter(c => c.padreId === cat.id);
 
-    const emoji = obtenerEmojiCategoria(cat.nombre);
-
     const div = document.createElement('div');
     div.innerHTML = `
       <h4 class="font-semibold text-chapinAzul text-sm mb-1 cursor-pointer hover:text-chapinNaranja" data-id-cat="${cat.id}">
-        ${emoji} ${cat.nombre}
+        ${cat.nombre}
       </h4>
       <ul class="space-y-0.5 text-xs">
         ${hijos.map(hijo => `
@@ -679,7 +800,7 @@ function construirMenuMovilCategorias() {
     const hijos = estadoApp.categorias.filter(c => c.padreId === cat.id);
     html += `<div class="mb-2">
       <button class="w-full text-left font-medium text-chapinAzul text-xs hover:text-chapinNaranja py-1" data-ir-categoria="${cat.id}">
-        ${obtenerEmojiCategoria(cat.nombre)} ${cat.nombre}
+        ${cat.nombre}
       </button>`;
     if (hijos.length) {
       html += `<div class="pl-3 space-y-0.5">`;
@@ -850,39 +971,62 @@ function vistaHome() {
         </div>
       </div>
 
-      <!-- Sección de categorías destacadas (se mantiene igual) -->
+
+      <!-- ========== CATEGORÍAS DESTACADAS (rediseño moderno) ========== -->
       <section>
-        <h3 class="font-semibold text-base mb-2">Categorías destacadas</h3>
-        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs">
-          ${categoriasDestacadas.map((cat) => {
-    const emoji = obtenerEmojiCategoria(cat.nombre);
-    return `
-              <button class="bg-white rounded-lg shadow-sm px-2 py-3 flex flex-col items-center justify-center hover:shadow-md"
-                      data-ir-categoria="${cat.id}">
-                <div class="text-2xl mb-1">${emoji}</div>
-                <span class="text-center">${cat.nombre}</span>
-              </button>`;
-  }).join('')}
+        <h3 class="text-xl font-bold text-chapinAzulDark mb-4">Categorías destacadas</h3>
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+          ${categoriasDestacadas.map((cat) => `
+            <button data-ir-categoria="${cat.id}"
+              class="group relative bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.12)] 
+                     transition-all duration-300 ease-out p-4 flex flex-col items-center justify-center min-h-[100px]
+                     hover:-translate-y-1 border border-slate-100 hover:border-chapinNaranja/40 focus:outline-none focus-visible:ring-2 ring-chapinNaranja">
+              <!-- Círculo decorativo con la inicial de la categoría (o ícono) -->
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-chapinAzul to-chapinAzulClaro text-white
+                          flex items-center justify-center font-bold text-2xl mb-3 shadow-md group-hover:scale-110 transition-transform duration-300">
+                ${cat.nombre.charAt(0).toUpperCase()}
+              </div>
+              <span class="font-semibold text-xs sm:text-sm text-slate-700 group-hover:text-chapinAzul transition-colors duration-200 text-center leading-tight">
+                ${cat.nombre}
+              </span>
+            </button>
+          `).join('')}
         </div>
       </section>
 
-      <!-- Resto de secciones (temporadas, productos recomendados) se mantienen igual -->
+      <!-- ========== PROMOCIONES (antes Temporadas y promociones) - diseño premium ========== -->
       <section>
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="font-semibold text-base">Temporadas y promociones</h3>
-          <button id="boton-ver-todas-temporadas" class="text-xs text-chapinAzul hover:text-chapinNaranja">Ver todas</button>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-chapinAzulDark">Promociones</h3>
+          <button id="boton-ver-todas-promociones" class="text-xs font-semibold text-chapinAzul hover:text-chapinNaranja transition-colors group">
+            Ver todas
+            <span class="inline-block ml-1 transition-transform group-hover:translate-x-1">→</span>
+          </button>
         </div>
-        <div class="flex gap-3 overflow-x-auto pb-1 text-xs">
+        <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
           ${temporadasActivas.map((t) => `
-            <div class="min-w-[180px] bg-white rounded-lg shadow-sm px-3 py-2 border border-chapinNaranja/30">
-              <div class="flex items-center justify-between mb-1">
-                <span class="font-semibold text-chapinAzul">${t.nombre}</span>
-                <span class="text-[10px] bg-chapinNaranja text-white rounded-full px-2 py-0.5">Promoción</span>
+            <div class="min-w-[260px] sm:min-w-[280px] relative bg-white rounded-2xl overflow-hidden shadow-md border border-slate-100 
+                        flex-shrink-0 snap-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl group">
+              <!-- Banner superior con gradiente -->
+              <div class="h-2 bg-gradient-to-r from-chapinNaranja to-chapinAzul"></div>
+              <div class="p-5 flex flex-col h-full">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-bold text-chapinAzul text-base tracking-tight">${t.nombre}</h4>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide
+                               bg-chapinNaranja/10 text-chapinNaranja border border-chapinNaranja/30">
+                    Activa
+                  </span>
+                </div>
+                <p class="text-slate-600 text-xs line-clamp-3 mb-3 flex-1">${t.descripcion || 'Aprovecha las mejores ofertas de esta temporada.'}</p>
+                <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>${t.fechaInicio} – ${t.fechaFin}</span>
+                </div>
               </div>
-              <p class="text-slate-600 line-clamp-2 mb-1">${t.descripcion}</p>
-              <p class="text-[11px] text-slate-500">Del ${t.fechaInicio} al ${t.fechaFin}</p>
-            </div>`
-  ).join('')}
+            </div>
+          `).join('')}
         </div>
       </section>
 
@@ -905,10 +1049,10 @@ function configurarEventosVistaHome() {
     });
   });
 
-  const btnVerTodasTemporadas = document.getElementById('boton-ver-todas-temporadas');
-  if (btnVerTodasTemporadas) {
-    btnVerTodasTemporadas.addEventListener('click', () => {
-      window.location.hash = '#/temporadas';
+  const btnVerTodasPromociones = document.getElementById('boton-ver-todas-promociones');
+  if (btnVerTodasPromociones) {
+    btnVerTodasPromociones.addEventListener('click', () => {
+      window.location.hash = '#/promociones';
     });
   }
 
@@ -936,44 +1080,61 @@ function gridProductos(listaProductos, opciones = {}) {
     totalPaginas = Math.max(1, Math.ceil(listaProductos.length / porPagina));
   }
 
+  const heartEmpty = 'https://cdn-icons-png.flaticon.com/512/1077/1077035.png';
+  const heartFilled = 'https://cdn-icons-png.flaticon.com/512/833/833472.png';
+
   return `
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
       ${productosPagina.map((p) => {
-    const precio = p.precio !== undefined && p.precio !== null ? Number(p.precio) : 0;
+    const precio = Number(p.precio ?? 0);
     const precioFormateado = precio.toFixed(2);
     const promo = p.temporadaIds && Array.isArray(p.temporadaIds) && p.temporadaIds.length > 0;
     const img = obtenerImagenProducto(p);
     const stockDisponible = obtenerStockProducto(p);
     const estaAgotado = stockDisponible <= 0;
+    const esFavorito = estadoApp.favoritos.includes(Number(p.id));
 
     return `
-          <div class="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
-            <button data-ver-producto="${p.id}" class="relative w-full pb-[100%] overflow-hidden">
-              <img src="${img}" alt="${p.nombre || 'Producto'}" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'" />
-              ${promo ? '<span class="absolute top-1 left-1 bg-chapinNaranja text-white text-[10px] px-2 py-0.5 rounded-full">Promoción</span>' : ''}
-            </button>
-            <div class="p-2 flex-1 flex flex-col">
-              <button data-ver-producto="${p.id}" class="text-[11px] font-medium line-clamp-2 text-left mb-1 hover:text-chapinNaranja">
+          <div class="product-card">
+            <div class="product-card-image-wrapper">
+              <button data-ver-producto="${p.id}">
+                <img src="${img}" alt="${p.nombre || 'Producto'}" onerror="this.style.display='none'" />
+              </button>
+              <!-- Icono de favorito -->
+              <div class="product-card-fav" data-toggle-fav="${p.id}">
+                <img src="${esFavorito ? heartFilled : heartEmpty}" alt="Favorito" />
+              </div>
+              ${promo ? '<span class="absolute top-1 left-1 bg-chapinNaranja text-white text-[10px] px-2 py-0.5 rounded-full">Promo</span>' : ''}
+            </div>
+
+            <div class="product-card-body">
+              <button data-ver-producto="${p.id}" class="product-card-name">
                 ${p.nombre || 'Producto sin nombre'}
               </button>
-              <div class="text-chapinAzul font-semibold mb-1">Q${precioFormateado}</div>
-              ${estaAgotado ? productoAgotadoHTML('mt-auto') : `
-                <button data-agregar-carrito="${p.id}" class="mt-auto bg-chapinAzul text-white rounded-full py-1 text-[11px] hover:bg-chapinAzulClaro">
+              <div class="product-card-price">Q${precioFormateado}</div>
+              <div class="product-card-stock ${estaAgotado ? 'agotado' : ''}">
+                ${estaAgotado ? 'AGOTADO' : `Stock: ${stockDisponible}`}
+              </div>
+              ${estaAgotado ? `
+                <div class="product-card-btn product-card-btn-agotado">Agotado</div>
+              ` : `
+                <button data-agregar-carrito="${p.id}" class="product-card-btn product-card-btn-add">
                   Agregar al carrito
                 </button>
               `}
             </div>
-          </div>`;
+          </div>
+        `;
   }).join('')}
     </div>
     ${mostrarPaginacion ? `
-      <div class="flex items-center justify-center gap-2 mt-3 text-xs">
-        <button class="px-2 py-1 border rounded-full ${pagina <= 1 ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
+      <div class="flex items-center justify-center gap-2 mt-4 text-sm">
+        <button class="px-3 py-1 border rounded-full ${pagina <= 1 ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
                 data-pagina="${pagina - 1}" ${pagina <= 1 ? 'disabled' : ''}>
           ◀
         </button>
         <span>Página ${pagina} de ${totalPaginas}</span>
-        <button class="px-2 py-1 border rounded-full ${pagina >= totalPaginas ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
+        <button class="px-3 py-1 border rounded-full ${pagina >= totalPaginas ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
                 data-pagina="${pagina + 1}" ${pagina >= totalPaginas ? 'disabled' : ''}>
           ▶
         </button>
@@ -998,6 +1159,14 @@ function configurarEventosGridProductos(contenedorSelector, listaCompleta) {
     if (btnAgregar) {
       const id = parseInt(btnAgregar.dataset.agregarCarrito);
       agregarAlCarrito(id, 1);
+      return;
+    }
+
+    // Dentro de configurarEventosGridProductos, en el listener de clic:
+    const btnFavorito = evento.target.closest('[data-toggle-fav]');
+    if (btnFavorito) {
+      const id = parseInt(btnFavorito.dataset.toggleFav);
+      toggleFavorito(id);
       return;
     }
 
@@ -1155,19 +1324,93 @@ function configurarEventosVistaDetalleProducto() {
 }
 
 function vistaPromociones() {
-  const productosPromo = estadoApp.productos.filter(p => p.temporadaIds && p.temporadaIds.length > 0);
-  return `
-    <section class="space-y-6">
-      <h1 class="text-xl font-bold">Promociones Activas</h1>
-      <div class="bg-orange-100 p-4 rounded-lg text-center">
-        <p class="font-semibold">¡Ofertas especiales de temporada!</p>
+  const temporadas = estadoApp.temporadas || [];
+  if (!temporadas.length) {
+    return `
+      <section class="space-y-4 text-sm">
+        <h1 class="text-xl font-bold">Promociones</h1>
+        <div class="bg-white rounded-2xl shadow p-8 text-center">
+          <img src="https://cdn3d.iconscout.com/3d/premium/thumb/promocion-3d-icon-png-download-10660367.png" 
+               alt="Sin promociones" class="w-16 h-16 mx-auto mb-3 opacity-60" />
+          <p class="text-slate-500">No hay promociones activas en este momento.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  const tarjetasHTML = temporadas.map((t, idx) => {
+    const productosTemporada = estadoApp.productos.filter(p => p.temporadaIds && p.temporadaIds.includes(t.id));
+    const featuredImg = productosTemporada.length > 0 && productosTemporada[0].imagenes?.length
+      ? productosTemporada[0].imagenes[0]
+      : 'https://via.placeholder.com/400x200/003366/ffffff?text=Promoci%C3%B3n';
+    const tieneProductos = productosTemporada.length > 0;
+
+    return `
+      <div class="promo-card group bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+        <!-- Banner superior con gradiente -->
+        <div class="h-2 bg-gradient-to-r from-chapinNaranja to-chapinAzul"></div>
+        <div class="p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div>
+              <h2 class="text-lg font-bold text-chapinAzul">${t.nombre}</h2>
+              <p class="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                ${t.fechaInicio} – ${t.fechaFin}
+              </p>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-chapinNaranja/10 text-chapinNaranja border border-chapinNaranja/30">
+              Activa
+            </span>
+          </div>
+          <p class="text-sm text-slate-600 mb-4 line-clamp-3">${t.descripcion || 'Aprovecha las mejores ofertas de esta temporada.'}</p>
+          ${tieneProductos ? `
+          <button data-toggle-promo="${idx}" class="text-sm font-semibold text-chapinAzul hover:text-chapinNaranja transition flex items-center gap-1 mb-3">
+            Ver productos 
+            <svg class="w-4 h-4 transition-transform duration-300 toggle-arrow" data-toggle-arrow="${idx}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div id="promo-products-${idx}" class="hidden mt-3">
+            ${gridProductos(productosTemporada.slice(0, 8))}
+          </div>
+          ` : '<p class="text-xs text-slate-400 mt-2">Próximamente productos en oferta.</p>'}
+        </div>
       </div>
-      ${gridProductos(productosPromo)}
+    `;
+  }).join('');
+
+  return `
+    <section class="space-y-4 text-sm">
+      <h1 class="text-xl font-bold text-chapinAzulDark">Promociones Activas</h1>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        ${tarjetasHTML}
+      </div>
     </section>
   `;
 }
 
 function configurarEventosVistaPromociones() {
+  // Toggle de productos en cada tarjeta
+  document.querySelectorAll('[data-toggle-promo]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.togglePromo;
+      const contenedor = document.getElementById(`promo-products-${idx}`);
+      const arrow = document.querySelector(`[data-toggle-arrow="${idx}"]`);
+      if (contenedor) {
+        const isHidden = contenedor.classList.contains('hidden');
+        if (isHidden) {
+          contenedor.classList.remove('hidden');
+          if (arrow) arrow.style.transform = 'rotate(180deg)';
+        } else {
+          contenedor.classList.add('hidden');
+          if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+      }
+    });
+  });
+
   configurarEventosBotonesAgregarCarrito();
 }
 
@@ -1242,16 +1485,16 @@ function vistaCarritoCompleto() {
                         ${estaAgotado ? productoAgotadoHTML('my-1') : `<p class="text-xs text-slate-500">Stock disponible: ${stockDisponible}</p>`}
                         <div class="flex items-center gap-2 mt-2">
                             <button data-carrito-decrementar="${item.productoId}" 
-                                    class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition"
-                                    ${item.cantidad <= 1 ? 'disabled' : ''}>-</button>
+                                    class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition flex items-center justify-center"
+                                    ${item.cantidad <= 1 ? 'disabled' : ''}><img src="${ICONOS.menos}" alt="-" class="w-3 h-3"></button>
                             <input type="number" value="${item.cantidad}" min="1" max="${stockDisponible}"
                                    data-carrito-cantidad="${item.productoId}" class="w-12 text-center border rounded-md text-sm"
                                    ${estaAgotado ? 'disabled' : ''} />
                             <button data-carrito-incrementar="${item.productoId}"
-                                    class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition"
-                                    ${estaAgotado || item.cantidad >= stockDisponible ? 'disabled' : ''}>+</button>
+                                    class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition flex items-center justify-center"
+                                    ${estaAgotado || item.cantidad >= stockDisponible ? 'disabled' : ''}><img src="${ICONOS.mas}" alt="+" class="w-3 h-3"></button>
                             <button data-carrito-eliminar="${item.productoId}" 
-                                    class="ml-auto text-red-500 hover:text-red-700 text-xs">🗑️ Eliminar</button>
+                                    class="ml-auto text-red-500 hover:text-red-700 text-xs flex items-center gap-1"><img src="${ICONOS.eliminar}" alt="Eliminar" class="w-4 h-4"> Eliminar</button>
                         </div>
                     </div>
                     <div class="text-right font-semibold text-chapinAzul whitespace-nowrap" id="subtotal-producto-${item.productoId}">
@@ -1358,188 +1601,292 @@ function vistaCheckout() {
   const envio = 25;
   const total = subtotal + envio;
 
-  const direccion = estadoApp.usuarioActual ? estadoApp.usuarioActual.direccion : '';
+  // ----- Lógica de dirección seleccionada (PREDETERMINADA o ÚLTIMA CREADA) -----
+  const direcciones = estadoApp.usuarioActual?.direcciones || [];
+  const direccionPredeterminada = direcciones.find(d => d.esPredeterminada);
+  const idDireccionSeleccionada = estadoApp.checkoutDireccionSeleccionadaId
+    || (direccionPredeterminada?.id)
+    || (direcciones.length > 0 ? direcciones[direcciones.length - 1].id : null);
+  estadoApp.checkoutDireccionSeleccionadaId = idDireccionSeleccionada;
+
+  // Opciones de dirección como tarjetas cliqueables
+  const opcionesDireccionHTML = direcciones.map(dir => {
+    const activa = dir.id === idDireccionSeleccionada;
+    const iconoDir = dir.etiqueta === 'Trabajo' ? ICONOS.trabajo : (dir.etiqueta === 'Otro' ? ICONOS.otroUbicacion : ICONOS.casa);
+    return `
+    <div data-direccion-id="${dir.id}" 
+         class="opcion-direccion-checkout flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 
+                ${activa ? 'border-chapinNaranja bg-orange-50' : ''}">
+      <img src="${iconoDir}" alt="${dir.etiqueta}" class="w-5 h-5 mt-0.5" />
+      <div class="flex-1">
+        <p class="text-sm font-medium">${dir.etiqueta || 'Casa'}</p>
+        <p class="text-xs text-slate-600">${dir.linea1}${dir.linea2 ? ', ' + dir.linea2 : ''}</p>
+        <p class="text-xs text-slate-400">${dir.ciudad}, ${dir.departamento} ${dir.codigoPostal || ''}</p>
+        <span class="text-xs text-chapinNaranja font-semibold seleccionada-leyenda">✔ Seleccionada</span>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  // Tarjetas guardadas
+  const tarjetas = estadoApp.usuarioActual?.tarjetas || [];
+  const tarjetasHTML = tarjetas.map(t => {
+    const ultimos4 = t.numeroEnmascarado?.slice(-4) || '****';
+    return `
+      <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 has-[:checked]:border-chapinNaranja has-[:checked]:bg-orange-50">
+        <input type="radio" name="tarjeta-seleccionada" value="${t.id}" class="sr-only peer" />
+        <img src="${obtenerIconoTarjeta(t.tipo)}" alt="${t.tipo || 'Tarjeta'}" class="w-8 h-8 object-contain rounded-full bg-white p-0.5 border border-slate-200" />
+        <div class="flex-1">
+          <p class="text-sm font-medium">${t.tipo || 'Tarjeta'} **** ${ultimos4}</p>
+          <p class="text-xs text-slate-500">${t.titular || ''} - Vence ${t.vencimiento || ''}</p>
+        </div>
+        <div class="w-5 h-5 rounded-full border-2 border-slate-300 peer-checked:border-chapinNaranja peer-checked:bg-chapinNaranja flex items-center justify-center">
+          <svg class="w-3 h-3 text-white hidden peer-checked:block" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  // Productos del resumen
+  const productosHTML = productosSeleccionados.map(item => {
+    const prod = estadoApp.productos.find(p => p.id === item.productoId);
+    if (!prod) return '';
+    const img = prod.imagenes?.[0] || obtenerImagenProducto(prod);
+    return `
+      <div class="flex items-center gap-4 py-2 border-b border-slate-100 last:border-0">
+        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+          <img src="${img}" alt="${prod.nombre}" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-slate-800 text-sm truncate">${prod.nombre}</p>
+          <p class="text-xs text-slate-500">Cant: ${item.cantidad} × Q${prod.precio.toFixed(2)}</p>
+        </div>
+        <p class="font-semibold text-chapinAzul whitespace-nowrap">Q${(prod.precio * item.cantidad).toFixed(2)}</p>
+      </div>
+    `;
+  }).join('');
 
   return `
-    <section class="max-w-2xl mx-auto space-y-6">
-      <h1 class="text-xl font-bold">Finalizar compra</h1>
-      
-      <div class="bg-white rounded-lg p-4">
-        <h2 class="font-semibold mb-3">Productos a pagar</h2>
-        ${productosSeleccionados.map(item => {
-    const prod = estadoApp.productos.find(p => p.id === item.productoId);
-    return prod ? `
-            <div class="flex gap-3 py-3 border-b">
-              <img src="${prod.imagenes && prod.imagenes[0] ? prod.imagenes[0] : ''}" class="w-16 h-16 object-cover rounded" onerror="this.style.display='none'" />
-              <div class="flex-1">
-                <p class="font-medium">${prod.nombre}</p>
-                <p class="text-xs text-slate-500">Cant: ${item.cantidad} × Q${prod.precio.toFixed(2)}</p>
-              </div>
-              <p class="font-semibold">Q${(prod.precio * item.cantidad).toFixed(2)}</p>
-            </div>
-          ` : '';
-  }).join('')}
+    <section class="max-w-5xl mx-auto">
+      <h1 class="text-2xl font-bold text-chapinAzul mb-6">Finalizar compra</h1>
+
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         
-        <div class="mt-4 space-y-1 text-sm">
-          <div class="flex justify-between">
-            <span>Subtotal</span>
-            <span>Q${subtotal.toFixed(2)}</span>
+        <div class="lg:col-span-3 space-y-5">
+          
+          <!-- Dirección de envío -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h2 class="font-semibold text-chapinAzul flex items-center gap-2 mb-4">
+              <img src="${ICONOS.ubicacion}" alt="Ubicación" class="w-5 h-5" /> Dirección de envío
+            </h2>
+            <div id="contenedor-direcciones-checkout">
+              ${opcionesDireccionHTML}
+            </div>
+            ${direcciones.length === 0
+      ? '<p class="text-sm text-red-500 mt-2">No tienes direcciones guardadas. Agrega una en tu perfil para continuar.</p>'
+      : ''
+    }
           </div>
-          <div class="flex justify-between border-t pt-2">
-            <span>Envío</span>
-            <span class="text-chapinNaranja">Q${envio.toFixed(2)}</span>
+
+          <!-- Método de pago -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h2 class="font-semibold text-chapinAzul flex items-center gap-2 mb-4">
+              <img src="${ICONOS.tarjetaPerfil}" alt="Tarjeta" class="w-5 h-5" /> Método de pago
+            </h2>
+            
+            <div class="space-y-2 mb-3" id="contenedor-tarjetas-guardadas">
+              ${tarjetasHTML || '<p class="text-sm text-slate-500 py-2">No tienes tarjetas guardadas.</p>'}
+            </div>
+
+            <!-- Opción nueva tarjeta (símbolo + perfectamente centrado) -->
+            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 has-[:checked]:border-chapinNaranja has-[:checked]:bg-orange-50">
+              <input type="radio" name="tarjeta-seleccionada" value="nueva" class="sr-only peer" />
+              <div class="plus-nueva-tarjeta">+</div>
+              <span class="text-sm font-medium">Usar una nueva tarjeta</span>
+            </label>
+
+            <div id="form-nueva-tarjeta" class="hidden mt-4 space-y-3 p-4 bg-slate-50 rounded-xl">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Titular de la tarjeta</label>
+                <input id="nueva-titular" type="text" placeholder="Como aparece en la tarjeta"
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Número de tarjeta</label>
+                <input id="nueva-numero" type="text" placeholder="0000 0000 0000 0000" maxlength="19"
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Vencimiento</label>
+                  <input id="nueva-vencimiento" type="text" placeholder="MM/AA" maxlength="5"
+                         class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">CVV</label>
+                  <input id="nueva-cvv" type="text" placeholder="123" maxlength="4"
+                         class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="flex justify-between font-bold text-lg border-t pt-2">
-            <span>Total a pagar</span>
-            <span class="text-chapinAzul">Q${total.toFixed(2)}</span>
+
+          <!-- Botón procesar pago (móvil) -->
+          <div class="lg:hidden sticky bottom-4 bg-white rounded-2xl shadow-lg border p-4 mt-4">
+            <div class="flex justify-between items-center mb-2">
+              <span class="font-semibold text-chapinAzul">Total a pagar</span>
+              <span class="text-xl font-bold text-chapinNaranja">Q${total.toFixed(2)}</span>
+            </div>
+            <button data-accion="procesar-pago" 
+                    class="w-full bg-gradient-to-r from-chapinNaranja to-orange-500 text-white font-semibold py-3.5 rounded-xl text-lg shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
+              <span>Procesar pago</span>
+              <span class="hidden ml-2 animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Resumen del pedido -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 lg:sticky lg:top-24">
+            <h2 class="font-semibold text-chapinAzul flex items-center gap-2 mb-4">
+              <img src="${ICONOS.carritoBoton}" alt="Carrito" class="w-5 h-5" /> Resumen del pedido
+            </h2>
+
+            <div class="mb-4 max-h-60 overflow-y-auto scrollbar-delgada">
+              ${productosHTML || '<p class="text-sm text-slate-500 py-2">No hay productos seleccionados.</p>'}
+            </div>
+
+            <div class="space-y-2 text-sm border-t pt-3">
+              <div class="flex justify-between text-slate-600">
+                <span>Subtotal (${productosSeleccionados.length} artículos)</span>
+                <span>Q${subtotal.toFixed(2)}</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>Envío</span>
+                <span class="text-chapinNaranja font-medium">Q${envio.toFixed(2)}</span>
+              </div>
+              <div class="flex justify-between font-bold text-lg text-chapinAzul pt-2 border-t">
+                <span>Total</span>
+                <span>Q${total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="hidden lg:block mt-5">
+              <button data-accion="procesar-pago" 
+                      class="w-full bg-gradient-to-r from-chapinNaranja to-orange-500 text-white font-semibold py-3.5 rounded-xl text-lg shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
+                <span>Procesar pago</span>
+                <span class="hidden ml-2 animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="bg-white rounded-lg p-4">
-        <h2 class="font-semibold mb-2">Dirección de envío</h2>
-        <input id="direccion-envio" type="text" value="${direccion}" 
-               class="w-full border rounded-md px-3 py-2" placeholder="Ingresa tu dirección" />
       </div>
-
-      <div class="bg-white rounded-lg p-4">
-        <h2 class="font-semibold mb-3">Método de pago</h2>
-        <select id="select-tarjeta" class="w-full border rounded-md px-3 py-2 mb-3">
-          <option value="">Seleccionar tarjeta guardada</option>
-          ${estadoApp.usuarioActual && estadoApp.usuarioActual.tarjetas ?
-      estadoApp.usuarioActual.tarjetas.map(t =>
-        `<option value="${t.id}">VISA **** ${t.numeroEnmascarado.slice(-4)} - ${t.vencimiento}</option>`
-      ).join('') : ''}
-          <option value="nueva">Nueva tarjeta</option>
-        </select>
-        <div id="form-nueva-tarjeta" class="hidden space-y-3">
-          <input id="nueva-titular" placeholder="Titular" class="w-full border rounded-md px-3 py-2" />
-          <input id="nueva-numero" placeholder="Número de tarjeta" class="w-full border rounded-md px-3 py-2" />
-          <div class="grid grid-cols-2 gap-3">
-            <input id="nueva-vencimiento" placeholder="MM/AA" class="border rounded-md px-3 py-2" />
-            <input id="nueva-cvv" placeholder="CVV" class="border rounded-md px-3 py-2" />
-          </div>
-        </div>
-      </div>
-
-      <button id="btn-procesar-pago" 
-              class="w-full bg-chapinNaranja text-white font-bold py-4 rounded-full text-lg">
-        Procesar Pago
-      </button>
     </section>
   `;
 }
 
 function configurarEventosVistaCheckout() {
-  const btnPago = document.getElementById('btn-procesar-pago');
-  if (!btnPago) return;
+  // Botones de pago
+  const botonesPago = document.querySelectorAll('[data-accion="procesar-pago"]');
+  if (!botonesPago.length) return;
 
-  btnPago.addEventListener('click', async () => {
-    if (btnPago.disabled) return;
+  botonesPago.forEach(btnPago => {
+    btnPago.addEventListener('click', async () => {
+      if (btnPago.disabled) return;
 
-    if (!estadoApp.usuarioActual || !estadoApp.usuarioActual.id) {
-      mostrarModal('Inicia sesion', '<p class="text-sm">Debes iniciar sesion para procesar el pago.</p>');
-      return;
-    }
-
-    const productosSeleccionados = estadoApp.carrito.filter(item => item.seleccionado);
-    if (!productosSeleccionados.length) {
-      mostrarModal('Carrito vacio', '<p class="text-sm">Selecciona al menos un producto para pagar.</p>');
-      return;
-    }
-
-    btnPago.disabled = true;
-    btnPago.classList.add('opacity-60', 'cursor-not-allowed');
-
-    mostrarModalCargaPago();
-
-    const pagoPromise = (async () => {
-      const datosPago = await obtenerDatosPagoCheckout();
-      if (!datosPago.ok) {
-        return { ok: false, mensaje: datosPago.mensaje };
+      if (!estadoApp.usuarioActual || !estadoApp.usuarioActual.id) {
+        mostrarModal('Inicia sesión', '<p class="text-sm">Debes iniciar sesión para procesar el pago.</p>');
+        return;
       }
 
-      return llamarApi('/public/pago', {
-        method: 'POST',
-        body: JSON.stringify(datosPago.payload)
+      const productosSeleccionados = estadoApp.carrito.filter(item => item.seleccionado);
+      if (!productosSeleccionados.length) {
+        mostrarModal('Carrito vacío', '<p class="text-sm">Selecciona al menos un producto para pagar.</p>');
+        return;
+      }
+
+      botonesPago.forEach(b => {
+        b.disabled = true;
+        b.classList.add('opacity-60', 'cursor-not-allowed');
       });
-    })();
 
-    const [resp] = await Promise.all([
-      pagoPromise,
-      esperar(5000)
-    ]);
+      mostrarModalCargaPago();
 
-    cerrarModal();
+      const pagoPromise = (async () => {
+        const datosPago = await obtenerDatosPagoCheckout();
+        if (!datosPago.ok) {
+          return { ok: false, mensaje: datosPago.mensaje };
+        }
+        return llamarApi('/public/pago', {
+          method: 'POST',
+          body: JSON.stringify(datosPago.payload)
+        });
+      })();
 
-    if (resp.ok) {
-      window.location.hash = '/';
-      
-      setTimeout(() => {
-        mostrarModal(
-          '✅ Hemos recibido tu pedido exitosamente!',
-          '<p class="text-sm">Gracias por tu pedido! Puedes ver tus pedidos en tu perfil/pedidos</p>'
-        );
+      const [resp] = await Promise.all([pagoPromise, esperar(5000)]);
+      cerrarModal();
+
+      if (resp.ok) {
+        estadoApp.carrito = estadoApp.carrito.filter(item => !item.seleccionado);
+        guardarCarritoLocal();
+        actualizarIconoCarrito();
+        actualizarPanelCarrito();
+        window.location.hash = '/';
 
         setTimeout(() => {
-          cerrarModal();
-          window.location.reload();
-        }, 1500);
-      }, 150);
-    } else {
-      btnPago.disabled = false;
-      btnPago.classList.remove('opacity-60', 'cursor-not-allowed');
-      mostrarModal('Pago no procesado', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo procesar el pago. Intenta nuevamente.'}</p>`);
-    }
-    return;
-
-    const subtotal = estadoApp.carrito
-      .filter(item => item.seleccionado)
-      .reduce((sum, item) => {
-        const prod = estadoApp.productos.find(p => p.id === item.productoId);
-        return sum + (prod ? prod.precio * item.cantidad : 0);
-      }, 0);
-
-    const envio = 25;
-    const total = subtotal + envio;
-
-    const respMock = await llamarApi('/public/pago', {
-      method: 'POST',
-      body: JSON.stringify({
-        monto: total,
-        tarjeta: { numero: "4111111111111111" }
-      })
+          mostrarModal(
+            '✅ Hemos recibido tu pedido exitosamente!',
+            '<p class="text-sm">Gracias por tu pedido! Puedes ver tus pedidos en tu perfil/pedidos</p>'
+          );
+          setTimeout(() => {
+            cerrarModal();
+            window.location.reload();
+          }, 1500);
+        }, 150);
+      } else {
+        botonesPago.forEach(b => {
+          b.disabled = false;
+          b.classList.remove('opacity-60', 'cursor-not-allowed');
+        });
+        mostrarModal('Pago no procesado', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo procesar el pago. Intenta nuevamente.'}</p>`);
+      }
     });
-
-    if (resp.ok && resp.datos.estado === 'Autorizado') {
-      const facturaHTML = construirFacturaMock(
-        resp.datos,
-        estadoApp.carrito.filter(i => i.seleccionado),
-        subtotal,
-        envio,
-        total,
-        document.getElementById('direccion-envio').value || 'Guatemala'
-      );
-
-      mostrarModal('¡Compra exitosa! 🎉', facturaHTML);
-
-      estadoApp.carrito = estadoApp.carrito.filter(item => !item.seleccionado);
-      guardarCarritoLocal();
-      actualizarIconoCarrito();
-      window.location.hash = '#/';
-    } else {
-      mostrarModal('Pago denegado', `
-        <p class="text-red-600 font-bold">Transacción rechazada</p>
-        <p>${resp.datos.mensaje || 'Intenta con otra tarjeta'}</p>
-      `);
-    }
   });
 
-  const selectTarjeta = document.getElementById('select-tarjeta');
+  // ----- Selección de dirección (clic sobre las tarjetas) -----
+  const contenedorDirecciones = document.getElementById('contenedor-direcciones-checkout');
+  if (contenedorDirecciones) {
+    contenedorDirecciones.addEventListener('click', (e) => {
+      const divDireccion = e.target.closest('.opcion-direccion-checkout');
+      if (!divDireccion) return;
+      const id = parseInt(divDireccion.dataset.direccionId);
+      if (isNaN(id)) return;
+
+      // Actualizar estado
+      estadoApp.checkoutDireccionSeleccionadaId = id;
+
+      // Refrescar visualmente todas las tarjetas
+      const todas = contenedorDirecciones.querySelectorAll('.opcion-direccion-checkout');
+      todas.forEach(div => {
+        const dirId = parseInt(div.dataset.direccionId);
+        if (dirId === id) {
+          div.classList.add('border-chapinNaranja', 'bg-orange-50');
+        } else {
+          div.classList.remove('border-chapinNaranja', 'bg-orange-50');
+        }
+      });
+    });
+  }
+
+  // Mostrar/ocultar formulario de nueva tarjeta
   const formNueva = document.getElementById('form-nueva-tarjeta');
-  if (selectTarjeta && formNueva) {
-    selectTarjeta.addEventListener('change', () => {
-      formNueva.classList.toggle('hidden', selectTarjeta.value !== 'nueva');
+  if (formNueva) {
+    document.querySelectorAll('input[name="tarjeta-seleccionada"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        formNueva.classList.toggle('hidden', radio.value !== 'nueva');
+      });
     });
   }
 }
@@ -1608,38 +1955,47 @@ async function obtenerDatosPagoCheckout() {
 
 function obtenerDireccionCheckout() {
   const direcciones = estadoApp.usuarioActual?.direcciones || [];
+  if (estadoApp.checkoutDireccionSeleccionadaId) {
+    const seleccionada = direcciones.find(d => d.id === estadoApp.checkoutDireccionSeleccionadaId);
+    if (seleccionada) return seleccionada;
+  }
+  // Fallback: predeterminada o primera disponible
   return direcciones.find(d => Number(d.esPredeterminada) === 1) || direcciones[0] || null;
 }
 
 function obtenerTarjetaCheckout() {
-  const selectTarjeta = document.getElementById('select-tarjeta');
-  const tarjetaSeleccionada = selectTarjeta ? selectTarjeta.value : '';
+  // Obtener el radio button seleccionado
+  const radioSeleccionado = document.querySelector('input[name="tarjeta-seleccionada"]:checked');
 
-  if (tarjetaSeleccionada === 'nueva') {
+  if (!radioSeleccionado) {
+    return { ok: false, mensaje: 'Selecciona una tarjeta guardada o ingresa una nueva.' };
+  }
+
+  const valor = radioSeleccionado.value;
+
+  // Si eligió "nueva", recopilar los datos del formulario
+  if (valor === 'nueva') {
     const titular = document.getElementById('nueva-titular')?.value.trim();
     const numeroTarjeta = document.getElementById('nueva-numero')?.value.trim();
     const vencimiento = document.getElementById('nueva-vencimiento')?.value.trim();
 
     if (!titular || !numeroTarjeta || !vencimiento) {
-      return { ok: false, mensaje: 'Completa titular, numero y vencimiento de la tarjeta.' };
+      return { ok: false, mensaje: 'Completa titular, número y vencimiento de la tarjeta.' };
     }
 
     return { ok: true, titular, numeroTarjeta, vencimiento };
   }
 
-  if (!tarjetaSeleccionada) {
-    return { ok: false, mensaje: 'Selecciona una tarjeta guardada o ingresa una nueva.' };
-  }
-
-  const tarjeta = estadoApp.usuarioActual?.tarjetas?.find(t => String(t.id) === String(tarjetaSeleccionada));
+  // Si eligió una tarjeta guardada, buscar en el perfil
+  const tarjeta = estadoApp.usuarioActual?.tarjetas?.find(t => String(t.id) === String(valor));
   if (!tarjeta) {
-    return { ok: false, mensaje: 'No se encontro la tarjeta seleccionada.' };
+    return { ok: false, mensaje: 'No se encontró la tarjeta seleccionada.' };
   }
 
   return {
     ok: true,
     titular: tarjeta.titular || estadoApp.usuarioActual.nombre || 'Cliente',
-    numeroTarjeta: tarjeta.numeroEnmascarado || tarjeta.numeroTarjeta || tarjetaSeleccionada,
+    numeroTarjeta: tarjeta.numeroEnmascarado, // ya incluye los **** y los últimos 4
     vencimiento: tarjeta.vencimiento || ''
   };
 }
@@ -1902,9 +2258,8 @@ function configurarEventosVistaLogin() {
       estadoApp.usuarioActual = resp.datos;
       guardarSesionEnLocalStorage();
       actualizarTextoUsuario();
-      // --- CORRECCIÓN: forzar sincronización del carrito al iniciar sesión ---
       await refrescarCarritoCompleto();
-      // --- fin corrección ---
+      await cargarFavoritos();
       window.location.hash = '#/';
       mostrarModal('¡Bienvenido!', `<p class="text-sm">${resp.mensaje}</p>`);
     } else {
@@ -2003,7 +2358,7 @@ function vistaPerfil() {
         </div>
         <button onclick="cerrarSesion()" 
                 class="text-red-500 hover:text-red-600 text-sm font-medium flex items-center gap-1 px-4 py-2 border border-red-200 rounded-full hover:bg-red-50 transition">
-          <span>🚪</span> Cerrar sesión
+          <img src="${ICONOS.cerrarSesion}" alt="Cerrar sesión" class="icono-img"> Cerrar sesión
         </button>
       </div>
 
@@ -2012,23 +2367,23 @@ function vistaPerfil() {
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2" id="perfil-tabs">
           <button class="perfil-tab perfil-tab-activo px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-center transition-colors"
                   data-tab="datos">
-            <span class="block sm:inline">👤</span> Datos
+            <span class="block sm:inline"><img src="${ICONOS.usuarioPerfil}" alt="Datos" class="icono-img"></span> Datos
           </button>
           <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
                   data-tab="direcciones">
-            <span class="block sm:inline">📍</span> Direcciones
+            <span class="block sm:inline"><img src="${ICONOS.direccion}" alt="Direcciones" class="icono-img"></span> Direcciones
           </button>
           <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
                   data-tab="seguridad">
-            <span class="block sm:inline">🔒</span> Seguridad
+            <span class="block sm:inline"><img src="${ICONOS.seguridad}" alt="Seguridad" class="icono-img"></span> Seguridad
           </button>
           <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
                   data-tab="tarjetas">
-            <span class="block sm:inline">💳</span> Tarjetas
+            <span class="block sm:inline"><img src="${ICONOS.tarjetaPerfil}" alt="Tarjetas" class="icono-img"></span> Tarjetas
           </button>
           <button class="perfil-tab px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-100 text-center transition-colors"
                   data-tab="pedidos">
-            <span class="block sm:inline">📦</span> Pedidos
+            <span class="block sm:inline"><img src="${ICONOS.pedidos}" alt="Pedidos" class="icono-img"></span> Pedidos
           </button>
         </div>
       </div>
@@ -2081,7 +2436,7 @@ function tabDirecciones(direcciones) {
     ? direcciones.map(d => `
         <div class="flex items-start justify-between p-4 border border-slate-200 rounded-xl mb-3 ${d.esPredeterminada ? 'border-chapinNaranja bg-orange-50' : ''}">
           <div class="flex items-start gap-3">
-            <span class="text-2xl">📍</span>
+            <img src="${ICONOS.ubicacion}" alt="Ubicación" class="w-6 h-6">
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-semibold">${d.etiqueta || 'Dirección'}</span>
@@ -2092,14 +2447,12 @@ function tabDirecciones(direcciones) {
             </div>
           </div>
           <div class="flex gap-2">
-            ${!d.esPredeterminada ? `<button data-marcar-predeterminada="${d.id}" class="text-xs text-chapinAzul hover:text-chapinNaranja">⭐</button>` : ''}
-            <button data-editar-direccion="${d.id}" class="text-xs text-slate-500 hover:text-chapinAzul">✏️</button>
-            <button data-eliminar-direccion="${d.id}" class="text-xs text-red-400 hover:text-red-600">🗑️</button>
+            <button data-editar-direccion="${d.id}" class="text-xs text-slate-500 hover:text-chapinAzul"><img src="${ICONOS.editar}" alt="Editar" class="w-4 h-4"></button>
+            <button data-eliminar-direccion="${d.id}" class="text-xs text-red-400 hover:text-red-600"><img src="${ICONOS.eliminar}" alt="Eliminar" class="w-4 h-4"></button>
           </div>
         </div>
       `).join('')
     : '<p class="text-slate-400 text-sm text-center py-8">No tienes direcciones guardadas</p>';
-
   return `
     <div id="tab-direcciones">
       <div class="flex items-center justify-between mb-4">
@@ -2190,7 +2543,7 @@ function tabSeguridad() {
         </div>
         <button type="submit" 
                 class="bg-chapinNaranja text-white px-8 py-3 rounded-full font-semibold hover:bg-orange-500 transition">
-          🔒 Actualizar Contraseña
+          <img src="${ICONOS.actualizarContrasena}" alt="Actualizar" class="icono-img"> Actualizar Contraseña
         </button>
       </form>
       <div id="mensaje-password" class="mt-3 text-sm hidden"></div>
@@ -2203,17 +2556,16 @@ function tabTarjetas(tarjetas) {
     ? tarjetas.map(t => `
         <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-xl mb-3">
           <div class="flex items-center gap-3">
-            <span class="text-2xl">💳</span>
+            <img src="https://static.vecteezy.com/system/resources/previews/022/187/202/non_2x/credit-card-3d-icon-illustration-png.png" alt="Tarjeta" class="w-8 h-8">
             <div>
               <p class="font-semibold">${t.tipo || 'Tarjeta'} **** ${t.numeroEnmascarado || '****'}</p>
               <p class="text-xs text-slate-300">${t.titular || ''} • Vence: ${t.vencimiento || ''}</p>
             </div>
           </div>
-          <button data-eliminar-tarjeta="${t.id}" class="text-red-400 hover:text-red-300 text-sm">🗑️</button>
+          <button data-eliminar-tarjeta="${t.id}" class="text-red-400 hover:text-red-300 text-sm"><img src="${ICONOS.eliminar}" alt="Eliminar" class="w-4 h-4"></button>
         </div>
       `).join('')
     : '<p class="text-slate-400 text-sm text-center py-8">No tienes tarjetas guardadas</p>';
-
   return `
     <div id="tab-tarjetas">
       <div class="flex items-center justify-between mb-4">
@@ -2226,7 +2578,7 @@ function tabTarjetas(tarjetas) {
       
       <div id="form-tarjeta-container" class="hidden border border-slate-200 rounded-xl p-4 mt-4">
         <h3 class="font-semibold mb-3">Nueva Tarjeta</h3>
-        <p class="text-xs text-slate-400 mb-3">🔒 Solo guardamos los últimos 4 dígitos de tu tarjeta</p>
+                <p class="text-xs text-slate-400 mb-3"><img src="${ICONOS.seguridadTarjeta}" alt="Seguridad" class="icono-img-sm"> Solo guardamos los últimos 4 dígitos de tu tarjeta</p>
         <form id="form-tarjeta" class="space-y-3">
           <div>
             <label class="block text-xs font-medium mb-1">Nombre del titular</label>
@@ -2284,7 +2636,7 @@ function tabPedidos(pedidos) {
     ? pedidos.map(p => `
         <div data-ver-pedido="${p.id}" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-slate-200 rounded-xl mb-3 hover:shadow-md hover:border-chapinAzul/30 transition cursor-pointer">
           <div class="flex items-center gap-4">
-            <span class="text-2xl">📦</span>
+            <img src="https://cdn3d.iconscout.com/3d/premium/thumb/caja-3d-icon-png-download-8068017.png" alt="Pedido" class="w-8 h-8">
             <div>
               <p class="font-semibold">Pedido #${p.id}</p>
               <p class="text-xs text-slate-500">${formatearFechaPedido(p.fecha)}</p>
@@ -2825,23 +3177,6 @@ function configurarTabDirecciones() {
       }
     });
   });
-
-  // Botones marcar como predeterminada
-  document.querySelectorAll('[data-marcar-predeterminada]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = parseInt(btn.dataset.marcarPredeterminada);
-      const resp = await llamarApi('/public/perfil/direcciones/' + id, {
-        method: 'PUT',
-        body: JSON.stringify({ esPredeterminada: 1 })
-      });
-      if (resp.ok) {
-        mostrarModal('Dirección predeterminada', '<p class="text-sm">Se actualizó correctamente.</p>');
-        await recargarDatosPerfilYActualizarTab('direcciones');
-      } else {
-        mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo actualizar') + '</p>');
-      }
-    });
-  });
 }
 
 // ============ TAB SEGURIDAD ============
@@ -2972,7 +3307,8 @@ function configurarTabTarjetas() {
       const id = btn.dataset.eliminarTarjeta;
       if (confirm('¿Eliminar esta tarjeta?')) {
         // ✅ USAR /perfil/tarjetas/{id} (CORREGIDO)
-        const resp = await llamarApi('/public/perfil/tarjetas/' + id, { method: 'DELETE' });
+        const uid = estadoApp.usuarioActual?.id || JSON.parse(localStorage.getItem('chapinMarket_usuario'))?.id;
+        const resp = await llamarApi(`/public/perfil/tarjetas/${id}?uid=${uid}`, { method: 'DELETE' });
         if (resp.ok) {
           mostrarModal('Tarjeta eliminada', '<p class="text-sm">Se eliminó correctamente.</p>');
           await recargarDatosPerfilYActualizarTab('tarjetas');
@@ -3285,21 +3621,61 @@ function configurarEventosVistaAdmin() {
 
 function vistaTodasCategorias() {
   const arbolHTML = construirArbolCategoriasHTML();
-  const productos = estadoApp.productos;
+
+  // Leer filtros actuales desde estadoApp
+  const filtros = estadoApp.filtrosProductos;
+  const precioMin = filtros.precioMin !== null ? filtros.precioMin : '';
+  const precioMax = filtros.precioMax !== null ? filtros.precioMax : '';
+  const estadoSeleccionado = filtros.estado || 'todos';
+
+  // Obtener productos filtrados por precio y estado
+  let productosFiltrados = filtrarProductos(estadoApp.productos);
 
   return `
-    <section class="grid grid-cols-1 md:grid-cols-[260px,1fr] gap-4 text-sm">
-      <aside class="bg-white rounded-lg shadow-sm p-3 text-xs">
+    <section class="grid grid-cols-[180px,1fr] md:grid-cols-[260px,1fr] gap-4 text-sm h-full">
+      <!-- COLUMNA IZQUIERDA: Categorías + Filtros -->
+      <aside class="filtro-section">
         <h1 class="text-base font-semibold mb-2">Todas las categorías</h1>
-        <p class="text-[11px] text-slate-600 mb-2">Navega por el árbol de categorías ChapínMarket.</p>
-        <div class="max-h-64 overflow-y-auto scrollbar-delgada">
+        <p class="text-[11px] text-slate-600 mb-4">Navega por el árbol de categorías ChapínMarket.</p>
+        <div class="max-h-48 overflow-y-auto scrollbar-delgada mb-4">
           ${arbolHTML}
         </div>
+
+        <!-- FILTROS REDISEÑADOS -->
+        <div class="border-t border-slate-100 pt-4 mt-2">
+          <h3>Filtrar productos</h3>
+
+          <div class="filtro-group">
+            <label class="filtro-label">Rango de precio (Q)</label>
+            <div class="flex gap-2">
+              <input type="number" id="filtro-precio-min" placeholder="Mínimo" value="${precioMin}"
+                     class="filtro-input flex-1" step="0.01" min="0">
+              <input type="number" id="filtro-precio-max" placeholder="Máximo" value="${precioMax}"
+                     class="filtro-input flex-1" step="0.01" min="0">
+            </div>
+          </div>
+
+          <div class="filtro-group">
+            <label class="filtro-label">Estado</label>
+            <select id="filtro-estado" class="filtro-select">
+              <option value="todos" ${estadoSeleccionado === 'todos' ? 'selected' : ''}>Todos</option>
+              <option value="disponible" ${estadoSeleccionado === 'disponible' ? 'selected' : ''}>✅ Disponible</option>
+              <option value="agotado" ${estadoSeleccionado === 'agotado' ? 'selected' : ''}>❌ Agotado</option>
+              <option value="favoritos" ${estadoSeleccionado === 'favoritos' ? 'selected' : ''}>⭐ Favorito</option>
+            </select>
+          </div>
+
+          <button id="btn-limpiar-filtros" class="filtro-btn-limpiar mt-2">
+            Limpiar filtros
+          </button>
+        </div>
       </aside>
-      <div>
-        <h2 class="text-base font-semibold mb-2">Productos destacados</h2>
-        <div id="contenedor-grid-categorias">
-          ${gridProductos(productos, {
+
+      <!-- COLUMNA DERECHA: Lista de productos (siempre visible) -->
+      <div class="flex flex-col h-full">
+        <h2 class="text-base font-semibold mb-2">Todos los productos</h2>
+        <div id="contenedor-grid-categorias" class="flex-1">
+          ${gridProductos(productosFiltrados, {
     mostrarPaginacion: true,
     pagina: estadoApp.filtrosProductos.pagina,
     porPagina: 12
@@ -3310,7 +3686,29 @@ function vistaTodasCategorias() {
   `;
 }
 
+function filtrarProductos(productos) {
+  const filtros = estadoApp.filtrosProductos;
+  let resultado = [...productos];
+
+  if (filtros.precioMin !== null && !isNaN(filtros.precioMin) && filtros.precioMin > 0) {
+    resultado = resultado.filter(p => (p.precio || 0) >= filtros.precioMin);
+  }
+  if (filtros.precioMax !== null && !isNaN(filtros.precioMax) && filtros.precioMax > 0) {
+    resultado = resultado.filter(p => (p.precio || 0) <= filtros.precioMax);
+  }
+
+  if (filtros.estado === 'disponible') {
+    resultado = resultado.filter(p => (p.stock || 0) > 0);
+  } else if (filtros.estado === 'agotado') {
+    resultado = resultado.filter(p => (p.stock || 0) === 0);
+  } else if (filtros.estado === 'favoritos') {
+    resultado = resultado.filter(p => estadoApp.favoritos.includes(Number(p.id)));
+  }
+  return resultado;
+}
+
 function configurarEventosVistaTodasCategorias() {
+  // Eventos originales: clic en categorías
   document.querySelectorAll('.texto-categoria').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.idCat);
@@ -3318,38 +3716,36 @@ function configurarEventosVistaTodasCategorias() {
     });
   });
 
+  // Eventos para filtros dinámicos
+  const inputMin = document.getElementById('filtro-precio-min');
+  const inputMax = document.getElementById('filtro-precio-max');
+  const selectEstado = document.getElementById('filtro-estado');
+  const btnLimpiar = document.getElementById('btn-limpiar-filtros');
+
+  const aplicarFiltros = () => {
+    // Guardar valores en estadoApp
+    estadoApp.filtrosProductos.precioMin = inputMin.value !== '' ? parseFloat(inputMin.value) : null;
+    estadoApp.filtrosProductos.precioMax = inputMax.value !== '' ? parseFloat(inputMax.value) : null;
+    estadoApp.filtrosProductos.estado = selectEstado.value;
+    estadoApp.filtrosProductos.pagina = 1;   // resetear página
+    renderizarVista();                        // recarga dinámica sin recarga de página
+  };
+
+  const limpiarFiltros = () => {
+    inputMin.value = '';
+    inputMax.value = '';
+    selectEstado.value = 'todos';
+    aplicarFiltros();
+  };
+
+  if (inputMin) inputMin.addEventListener('input', aplicarFiltros);
+  if (inputMax) inputMax.addEventListener('input', aplicarFiltros);
+  if (selectEstado) selectEstado.addEventListener('change', aplicarFiltros);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
+
+  // Mantener la paginación (ya existe en gridProductos)
   configurarEventosGridProductos('#contenedor-grid-categorias', estadoApp.productos);
   configurarEventosBotonesAgregarCarrito();
-}
-
-function vistaTemporadas() {
-  return `
-    <section class="space-y-3 text-sm">
-      <h1 class="text-base sm:text-lg font-semibold">Temporadas y promociones</h1>
-      <p class="text-xs text-slate-600">Descubre campañas activas y productos destacados en cada temporada.</p>
-      <div class="space-y-3">
-        ${estadoApp.temporadas.map((t) => {
-    const productosTemporada = estadoApp.productos.filter((p) => p.temporadaIds && p.temporadaIds.includes(t.id));
-    return `
-            <div class="bg-white rounded-lg shadow-sm p-3 space-y-2">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h2 class="font-semibold text-sm">${t.nombre}</h2>
-                  <p class="text-[11px] text-slate-500">Del ${t.fechaInicio} al ${t.fechaFin}</p>
-                </div>
-                <span class="text-[11px] bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Activa</span>
-              </div>
-              <p class="text-xs text-slate-700">${t.descripcion}</p>
-              ${productosTemporada.length
-        ? `<div class="mt-2">${gridProductos(productosTemporada.slice(0, 8))}</div>`
-        : '<p class="text-[11px] text-slate-500 mt-1">Aún no hay productos asociados a esta temporada.</p>'
-      }
-            </div>
-          `;
-  }).join('')}
-      </div>
-    </section>
-  `;
 }
 
 function configurarEventosVistaTemporadas() {
@@ -3701,17 +4097,17 @@ function actualizarPanelCarrito() {
               <div class="cantidad-control">
                 <button data-cantidad-decrementar="${item.productoId}" 
                   ${item.cantidad <= 1 ? 'disabled' : ''}
-                  class="text-slate-600 hover:text-chapinAzul">−</button>
+                  class="text-slate-600 hover:text-chapinAzul w-6 h-6 flex items-center justify-center"><img src="${ICONOS.menos}" alt="-" class="w-3 h-3"></button>
                 <input type="number" value="${item.cantidad}" data-cantidad-input="${item.productoId}"
                   min="1" max="${stockDisponible}" class="text-xs" ${estaAgotado ? 'disabled' : ''} />
                 <button data-cantidad-incrementar="${item.productoId}"
                   ${estaAgotado || item.cantidad >= stockDisponible ? 'disabled' : ''}
-                  class="text-slate-600 hover:text-chapinAzul">+</button>
+                  class="text-slate-600 hover:text-chapinAzul w-6 h-6 flex items-center justify-center"><img src="${ICONOS.mas}" alt="+" class="w-3 h-3"></button>
               </div>
               <span class="font-bold text-chapinAzul text-sm">Q${subtotalItem.toFixed(2)}</span>
             </div>
             <button data-eliminar-carrito-panel="${item.productoId}" 
-              class="mt-1 text-xs text-red-400 hover:text-red-600 transition">🗑️ Eliminar</button>
+                    class="mt-1 text-xs text-red-400 hover:text-red-600 transition flex items-center gap-1"><img src="${ICONOS.eliminar}" alt="Eliminar" class="w-4 h-4"> Eliminar</button>
           </div>
         </div>
       `;
@@ -3900,7 +4296,6 @@ function configurarEventosGlobales() {
   const menuMovilTemp = document.getElementById('menu-movil-temporadas');
   const botonIrPromociones = document.getElementById('boton-ir-promociones');
   const botonIrCategorias = document.getElementById('boton-ir-categorias');
-  const botonIrTemporadas = document.getElementById('boton-ir-temporadas');
 
   // --- Logo ---
   if (botonLogo) {
@@ -4004,6 +4399,15 @@ function configurarEventosGlobales() {
         if (flecha) flecha.classList.add('rotate-arrow');
       }
     });
+
+    // Delegación global para favoritos (funciona en cualquier vista)
+    document.addEventListener('click', (e) => {
+      const btnFav = e.target.closest('[data-toggle-fav]');
+      if (!btnFav) return;
+      const id = parseInt(btnFav.dataset.toggleFav);
+      if (id) toggleFavorito(id);
+    });
+
   }
 
   // --- Hamburger menú (móvil) ---
@@ -4062,11 +4466,6 @@ function configurarEventosGlobales() {
   if (botonIrCategorias) {
     botonIrCategorias.addEventListener('click', () => {
       window.location.hash = '#/categorias';
-    });
-  }
-  if (botonIrTemporadas) {
-    botonIrTemporadas.addEventListener('click', () => {
-      window.location.hash = '#/temporadas';
     });
   }
 
@@ -4176,12 +4575,32 @@ function configurarHeaderScroll() {
   // Con la comprobación dentro de actualizarHeader es suficiente.
 }
 
+/**
+ * Vuelve a la vista de inicio desde los resultados de búsqueda.
+ * Limpia el input de búsqueda y restaura la interfaz principal.
+ */
+function volverAlInicioDesdeBusqueda() {
+  // Limpiar el texto del buscador
+  const inputBusqueda = document.getElementById('input-busqueda-global');
+  if (inputBusqueda) inputBusqueda.value = '';
+
+  // Forzar la vista home sin depender del hash
+  estadoApp.vistaActual = 'home';
+  estadoApp.filtrosProductos.texto = '';   // limpiar filtro de búsqueda textual
+  estadoApp.filtrosProductos.pagina = 1;
+
+  renderizarVista();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+// Exponer globalmente para que el onclick inline la encuentre
+window.volverAlInicioDesdeBusqueda = volverAlInicioDesdeBusqueda;
+
 function mostrarResultadosBusqueda(texto, resultados) {
   const html = `
     <section class="space-y-3 text-sm">
       <div class="flex items-center justify-between">
         <h1 class="text-base sm:text-lg font-semibold">Resultados para "${texto}"</h1>
-        <button class="text-xs text-chapinAzul hover:text-chapinNaranja cursor-pointer" onclick="window.location.hash='#/'; setTimeout(function(){ window.scrollTo({top:0,behavior:'smooth'}); }, 50);">Volver al inicio</button>
+        <button class="text-xs text-chapinAzul hover:text-chapinNaranja cursor-pointer" onclick="volverAlInicioDesdeBusqueda()">Volver al inicio</button>
       </div>
       ${resultados.length
       ? `<div id="contenedor-busqueda-productos">${gridProductos(resultados.slice(0, 40))}</div>`

@@ -24,10 +24,22 @@
 </head>
 
 <body class="bg-chapinGris text-slate-900 min-h-screen flex flex-col">
-  <div id="overlay-carga" class="overlay-carga hidden">
-    <div class="spinner-chapin" aria-hidden="true">
-      <img src="img/logo.png?v=2" alt="ChapínMarket" class="h-10 sm:h-12 object-contain"
-        onerror="this.onerror=null; this.src='https://picsum.photos/80/80';" />
+  <!-- NUEVA PANTALLA DE CARGA PROFESIONAL -->
+  <div id="overlay-carga" class="overlay-carga">
+    <div class="loading-container">
+      <!-- GIF centrado como indicador principal -->
+      <div class="loading-gif-wrapper">
+        <img src="https://media.baamboozle.com/uploads/images/19487/1630545756_128644_gif-url.gif" alt="Cargando..."
+          class="loading-gif" width="160" height="160" />
+      </div>
+
+      <!-- Barra de progreso real -->
+      <div class="progress-wrapper">
+        <div class="progress-track">
+          <div class="progress-fill" id="loading-progress-bar" style="width: 0%;"></div>
+        </div>
+        <span class="progress-percent" id="loading-progress-text">0%</span>
+      </div>
     </div>
   </div>
 
@@ -47,18 +59,22 @@
             <div class="relative">
               <input id="input-busqueda-global" type="search" placeholder="Buscar productos, categorías o temporadas..."
                 class="w-full rounded-full py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-chapinNaranja" />
-              <span id="icono-busqueda"
-                class="absolute left-3 top-2 text-slate-400 cursor-pointer hover:text-chapinNaranja transition">🔍</span>
+              <img id="icono-busqueda"
+                src="https://cdn3d.iconscout.com/3d/premium/thumb/buscar-3d-icon-png-download-4862959.png" alt="Buscar"
+                class="absolute left-3 top-2 w-5 h-5 cursor-pointer hover:opacity-80 transition object-contain">
             </div>
           </div>
 
           <div class="flex items-center gap-3">
             <button id="boton-usuario"
               class="flex items-center gap-1 text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-1 rounded-full">
-              <span class="text-lg">👤</span>
+              <img src="https://marketplace.canva.com/xoaS8/MAHFPdxoaS8/1/tl/canva-3d-user-profile-icon-MAHFPdxoaS8.png"
+                alt="Usuario" class="w-5 h-5">
               <span id="texto-usuario-actual" class="hidden sm:inline-block">Iniciar sesión</span>
             </button>
-            <button id="boton-hamburguesa" class="md:hidden text-2xl focus:outline-none ml-1">☰</button>
+            <button id="boton-hamburguesa" class="md:hidden text-2xl focus:outline-none ml-1"><img
+                src="https://cdn3d.iconscout.com/3d/premium/thumb/boton-de-hamburguesa-3d-icon-png-download-6507182.png"
+                alt="Menú" class="w-6 h-6"></button>
           </div>
         </div>
 
@@ -66,7 +82,9 @@
           <div class="relative">
             <button id="boton-categorias-dropdown"
               class="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-chapinAzul font-medium hover:shadow-md transition">
-              <span>🧭 Categorías</span>
+              <img
+                src="https://static.vecteezy.com/system/resources/previews/028/602/246/non_2x/folder-3d-rendering-icon-illustration-free-png.png"
+                alt="Categorías" class="w-5 h-5 inline align-middle"> Categorías
               <span id="flecha-categorias" class="transition-transform duration-300">▾</span>
             </button>
             <div id="dropdown-categorias"
@@ -76,9 +94,16 @@
               <div id="mega-menu-columna-3" class="space-y-2 text-sm"></div>
             </div>
           </div>
-          <button id="boton-ir-promociones" class="hover:text-chapinNaranja">Promociones</button>
-          <button id="boton-ir-categorias" class="hover:text-chapinNaranja">Todas las categorías</button>
-          <button id="boton-ir-temporadas" class="hover:text-chapinNaranja">Temporadas</button>
+          <button id="boton-ir-promociones" class="hover:text-chapinNaranja flex items-center gap-1">
+            <img src="https://cdn3d.iconscout.com/3d/premium/thumb/promocion-3d-icon-png-download-10660367.png"
+              alt="Promociones" class="icono-img-sm">
+            Promociones
+          </button>
+          <button id="boton-ir-categorias" class="hover:text-chapinNaranja flex items-center gap-1">
+            <img src="https://cdn3d.iconscout.com/3d/premium/thumb/cajas-3d-icon-png-download-4936204.png"
+              alt="Categorías" class="icono-img-sm">
+            Todas las categorías
+          </button>
         </nav>
       </div>
     </header>
@@ -93,9 +118,12 @@
       class="panel-carrito-lateral fixed top-0 right-0 h-full bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-[60] flex flex-col">
       <div
         class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-chapinAzul text-white flex-shrink-0">
-        <h2 class="font-semibold text-sm">🛒 Carrito de compras</h2>
-        <button id="cerrar-panel-carrito"
-          class="text-xl leading-none hover:text-chapinNaranja transition">&times;</button>
+        <h2 class="font-semibold text-sm"><img
+            src="https://static.vecteezy.com/system/resources/previews/009/417/132/non_2x/ecommerce-icon-empty-yellow-shopping-cart-3d-illustration-free-png.png"
+            alt="Carrito" class="w-5 h-5 inline align-middle mr-1"> Carrito de compras</h2>
+        <button id="cerrar-panel-carrito" class="text-xl leading-none hover:text-chapinNaranja transition"><img
+            src="https://marketplace.canva.com/hqy4I/MAGFdxhqy4I/1/tl/canva-3d-close-icon-MAGFdxhqy4I.png" alt="Cerrar"
+            class="w-5 h-5"></button>
       </div>
 
       <div id="lista-carrito-panel" class="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-delgada text-sm"></div>
@@ -106,8 +134,8 @@
           <span id="subtotal-carrito-panel" class="font-semibold text-chapinAzul">Q0.00</span>
         </div>
         <button id="boton-ir-checkout"
-          class="w-full bg-chapinNaranja hover:bg-orange-500 text-white font-semibold py-2 rounded-full text-sm transition">
-          💳 Ir a pagar
+          class="w-full bg-chapinNaranja hover:bg-orange-500 text-white font-semibold py-2 rounded-full text-sm transition flex items-center justify-center gap-1">
+          <img src="https://cdn-icons-png.freepik.com/512/10473/10473692.png" alt="Pagar" class="w-5 h-5"> Ir a pagar
         </button>
       </div>
 
@@ -156,30 +184,44 @@
       class="fixed top-0 left-0 h-full w-[300px] max-w-[80vw] bg-white shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col">
       <div class="flex items-center justify-between p-4 bg-chapinAzul text-white">
         <h2 class="font-semibold text-sm">Menú</h2>
-        <button id="cerrar-menu-movil" class="text-2xl leading-none">×</button>
+        <button id="cerrar-menu-movil" class="text-2xl leading-none"><img
+            src="https://marketplace.canva.com/hqy4I/MAGFdxhqy4I/1/tl/canva-3d-close-icon-MAGFdxhqy4I.png" alt="Cerrar"
+            class="w-5 h-5"></button>
       </div>
       <div class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-delgada text-sm">
         <div id="menu-movil-categorias-container">
           <button id="btn-categorias-movil"
             class="flex items-center justify-between w-full font-medium py-2 border-b border-slate-200 text-chapinAzul">
-            <span>🧭 Categorías</span>
+            <span class="flex items-center gap-2">
+              <img src="https://cdn3d.iconscout.com/3d/premium/thumb/cajas-3d-icon-png-download-4936204.png"
+                alt="Categorías" class="icono-img-sm">
+              Categorías
+            </span>
             <span id="flecha-categorias-movil" class="transition-transform duration-300">▾</span>
           </button>
           <div id="submenu-categorias-movil" class="hidden pl-4 space-y-1 text-slate-700 text-xs mt-1"></div>
         </div>
         <button id="menu-movil-promociones"
-          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja">Promociones</button>
+          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja flex items-center gap-2">
+          <img src="https://cdn3d.iconscout.com/3d/premium/thumb/promocion-3d-icon-png-download-10660367.png"
+            alt="Promociones" class="icono-img-sm">
+          Promociones
+        </button>
         <button id="menu-movil-todas-categorias"
-          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja">Todas las categorías</button>
-        <button id="menu-movil-temporadas"
-          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja">Temporadas</button>
+          class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja flex items-center gap-2">
+          <img src="https://cdn3d.iconscout.com/3d/premium/thumb/cajas-3d-icon-png-download-4936204.png"
+            alt="Categorías" class="icono-img-sm">
+          Todas las categorías
+        </button>
       </div>
     </aside>
 
     <!-- BOTÓN FLOTANTE PARA ABRIR CARRITO - ÚNICO punto de acceso -->
     <button id="boton-flotante-carrito"
-      class="boton-flotante-carrito fixed bottom-4 right-4 bg-chapinNaranja text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-2xl z-30 hover:bg-orange-500 transition">
-      🛒
+      class="boton-flotante-carrito fixed bottom-4 right-4 bg-chapinNaranja text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center z-30 hover:bg-orange-500 transition">
+      <img
+        src="https://cdn3d.iconscout.com/3d/premium/thumb/carrito-de-compras-y-bolsas-3d-icon-png-download-3363951.png"
+        alt="Carrito" class="w-8 h-8">
       <span id="contador-carrito-flotante"
         class="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full px-1.5 py-0.5 text-white font-semibold">0</span>
     </button>
@@ -188,7 +230,9 @@
       <div class="bg-white rounded-lg shadow-xl max-w-md w-[90vw] max-h-[90vh] overflow-y-auto scrollbar-delgada">
         <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
           <h2 id="modal-titulo" class="font-semibold text-sm"></h2>
-          <button id="modal-cerrar" class="text-xl leading-none">&times;</button>
+          <button id="modal-cerrar" class="text-xl leading-none"><img
+              src="https://marketplace.canva.com/hqy4I/MAGFdxhqy4I/1/tl/canva-3d-close-icon-MAGFdxhqy4I.png"
+              alt="Cerrar" class="w-5 h-5"></button>
         </div>
         <div id="modal-contenido" class="p-4 text-sm"></div>
       </div>
@@ -246,11 +290,15 @@
                 <span>Ciudad de Guatemala, Zona 1</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="text-chapinNaranja text-lg leading-none mt-0.5">📞</span>
+                <img
+                  src="https://static.vecteezy.com/system/resources/previews/046/893/694/non_2x/3d-phone-icon-3d-phone-symbol-phone-calling-photo-free-png.png"
+                  alt="Teléfono" class="w-5 h-5 mt-0.5">
                 <span>+502 1234-5678</span>
               </li>
               <li class="flex items-start gap-2">
-                <span class="text-chapinNaranja text-lg leading-none mt-0.5">✉️</span>
+                <img
+                  src="https://cdn3d.iconscout.com/3d/premium/thumb/correo-electronico-3d-icon-png-download-5523022.png"
+                  alt="Email" class="w-5 h-5 mt-0.5">
                 <span>info@chapinmarket.gt</span>
               </li>
             </ul>
