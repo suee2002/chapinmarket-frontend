@@ -46,7 +46,7 @@
         <div class="flex items-center justify-between py-2 sm:py-3 gap-2">
           <button id="boton-logo"
             class="flex items-center gap-2 font-bold text-lg sm:text-2xl tracking-tight focus:outline-none">
-            <img src="img/logo.png?v=2" alt="ChapínMarket" class="h-10 sm:h-12 object-contain"
+            <img src="img/logo.png?v=2" alt="ChapínMarket" class="h-10 sm:h-12 object-contain logo-glow"
               onerror="this.onerror=null; this.src='https://picsum.photos/80/80';" />
             <span class="hidden sm:inline">Chapín<span class="text-chapinNaranja">Market</span></span>
           </button>
@@ -92,8 +92,8 @@
           </div>
           <button id="boton-ir-promociones" class="hover:text-chapinNaranja flex items-center gap-1">
             <img src="https://cdn3d.iconscout.com/3d/premium/thumb/promocion-3d-icon-png-download-10660367.png"
-              alt="Promociones" class="icono-img-sm">
-            Promociones
+              alt="Temporadas" class="icono-img-sm">
+            Temporadas
           </button>
           <button id="boton-ir-categorias" class="hover:text-chapinNaranja flex items-center gap-1">
             <img src="https://cdn3d.iconscout.com/3d/premium/thumb/cajas-3d-icon-png-download-4936204.png"
@@ -194,8 +194,8 @@
         <button id="menu-movil-promociones"
           class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja flex items-center gap-2">
           <img src="https://cdn3d.iconscout.com/3d/premium/thumb/promocion-3d-icon-png-download-10660367.png"
-            alt="Promociones" class="icono-img-sm">
-          Promociones
+            alt="Temporadas" class="icono-img-sm">
+          Temporadas
         </button>
         <button id="menu-movil-todas-categorias"
           class="w-full text-left py-2 border-b border-slate-200 hover:text-chapinNaranja flex items-center gap-2">
@@ -256,12 +256,11 @@
           <div class="space-y-3">
             <h4 class="font-semibold text-base border-b border-white/20 pb-1">Enlaces Útiles</h4>
             <ul class="space-y-2 text-white/70 text-xs">
-              <li><a href="#" class="footer-link">Inicio</a></li>
-              <li><a href="#" class="footer-link">Categorías</a></li>
-              <li><a href="#" class="footer-link">Promociones</a></li>
-              <li><a href="#" class="footer-link">Temporadas</a></li>
-              <li><a href="#" class="footer-link">Mi Carrito</a></li>
-              <li><a href="#" class="footer-link">Iniciar Sesión</a></li>
+              <li><a href="#/" class="footer-link" data-footer-nav="inicio">Inicio</a></li>
+              <li><a href="#/categorias" class="footer-link" data-footer-nav="categorias">Categorías</a></li>
+              <li><a href="#/temporadas" class="footer-link" data-footer-nav="temporadas">Temporadas</a></li>
+              <li><a href="#/carrito" class="footer-link" data-footer-nav="carrito">Mi Carrito</a></li>
+              <li><a href="#/login" class="footer-link" id="footer-link-auth" data-footer-nav="auth">Iniciar Sesión</a></li>
             </ul>
           </div>
           <div class="space-y-3">

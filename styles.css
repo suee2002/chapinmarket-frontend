@@ -862,7 +862,8 @@ body {
     height: 18px;
     object-fit: contain;
     pointer-events: none;
-    transform: translate(-50%, -50%) !important;  /* Centrado fijo */
+    transform: translate(-50%, -50%) !important;
+    /* Centrado fijo */
     transition: none !important;
     backface-visibility: hidden;
     image-rendering: auto;
@@ -1193,4 +1194,109 @@ body {
 .custom-select-options {
     max-height: 180px;
     overflow-y: auto;
+}
+
+.categoria-arbol {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.categoria-hijos {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 0;
+}
+
+.categoria-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+    color: #64748b;
+    transition: color 0.2s;
+}
+
+.categoria-toggle:hover {
+    color: #003366;
+}
+
+.logo-glow {
+    filter: drop-shadow(0 0 12px rgba(255, 140, 50, 0.7));
+    transition: filter 0.3s ease;
+}
+
+.logo-glow:hover {
+    filter: drop-shadow(0 0 18px rgba(255, 140, 50, 0.9));
+}
+
+.paginacion-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+.paginacion-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.paginacion-btn:hover:not(.paginacion-btn-disabled) {
+    border-color: #ff8c32;
+    box-shadow: 0 4px 14px rgba(255, 140, 50, 0.25);
+    transform: translateY(-2px);
+}
+
+.paginacion-btn:active:not(.paginacion-btn-disabled) {
+    transform: scale(0.95);
+}
+
+.paginacion-btn-disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(1);
+}
+
+.paginacion-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.paginacion-info {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+/* Zoom en imagen principal de producto */
+.imagen-principal-wrapper {
+    overflow: hidden;
+}
+
+.imagen-principal-wrapper img {
+    transition: transform 0.3s ease;
+    cursor: zoom-in;
+}
+
+.imagen-principal-wrapper img.zoom-activo {
+    transform: scale(1.8);
+    cursor: zoom-out;
 }

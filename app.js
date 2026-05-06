@@ -2,6 +2,8 @@ import { llamarApi } from './api.js';
 
 const estadoApp = {
   categorias: [],
+  categoriasDestacadas: [],
+  ultimaCategoriaId: null,
   productos: [],
   temporadas: [],
   usuarioActual: null,
@@ -196,10 +198,12 @@ async function cargarDatosIniciales() {
     const respCategorias = await llamarApi('/public/categorias').catch(e => ({ ok: false, datos: [] }));
     const respProductos = await llamarApi('/public/productos').catch(e => ({ ok: false, datos: [] }));
     const respTemporadas = await llamarApi('/public/temporadas').catch(e => ({ ok: false, datos: [] }));
+    const respCategoriasDestacadas = await llamarApi('/public/categorias/destacadas').catch(e => ({ ok: false, datos: [] }));
 
     estadoApp.categorias = respCategorias.ok && Array.isArray(respCategorias.datos) ? respCategorias.datos : [];
     estadoApp.productos = respProductos.ok && Array.isArray(respProductos.datos) ? respProductos.datos : [];
     estadoApp.temporadas = respTemporadas.ok && Array.isArray(respTemporadas.datos) ? respTemporadas.datos : [];
+    estadoApp.categoriasDestacadas = respCategoriasDestacadas.ok && Array.isArray(respCategoriasDestacadas.datos) ? respCategoriasDestacadas.datos : [];
 
     if (!respCategorias.ok) console.error('Error cargando categorías:', respCategorias.mensaje);
     if (!respProductos.ok) console.error('Error cargando productos:', respProductos.mensaje);
@@ -248,7 +252,8 @@ async function cargarDatosIniciales() {
       ...c,
       id: Number(c.ID || c.id),
       nombre: c.NOMBRE || c.nombre || 'Sin nombre',
-      padreId: c.PADRE_ID !== undefined && c.PADRE_ID !== null ? Number(c.PADRE_ID) : (c.padreId !== undefined ? Number(c.padreId) : null)
+      padreId: c.PADRE_ID !== undefined && c.PADRE_ID !== null ? Number(c.PADRE_ID) : (c.padreId !== undefined ? Number(c.padreId) : null),
+      icono: c.ICONO || c.icono || null
     }));
 
     estadoApp.temporadas = estadoApp.temporadas.map(t => ({
@@ -539,6 +544,17 @@ function renderizarVista() {
   const contenedor = document.getElementById('vista-principal');
   if (!contenedor) return;
 
+  // Resetear página al entrar a una categoría diferente
+  if (estadoApp.vistaActual === 'categoria') {
+    const idCat = estadoApp.parametrosVista.id;
+    if (idCat !== estadoApp.ultimaCategoriaId) {
+      estadoApp.filtrosProductos.pagina = 1;
+      estadoApp.ultimaCategoriaId = idCat;
+    }
+  } else {
+    estadoApp.ultimaCategoriaId = null; // no estamos viendo una categoría
+  }
+
   switch (estadoApp.vistaActual) {
     case 'home':
       contenedor.innerHTML = vistaHome();
@@ -694,10 +710,21 @@ function vistaCategoria(idCategoria) {
   const cat = estadoApp.categorias.find(c => c.id === idCategoria);
   if (!cat) return `<p class="text-sm text-red-500">Categoría no encontrada.</p>`;
 
-  const idsDescendientes = obtenerDescendientesCategoria(idCategoria);
+  // Si es una subcategoría, usamos la categoría padre para mostrar los productos.
+  const idReal = cat.padreId !== null && cat.padreId !== undefined ? cat.padreId : idCategoria;
+  const idsDescendientes = obtenerDescendientesCategoria(idReal);
+
+  // También incluir la subcategoría seleccionada si es distinta (por si hubiera productos asignados directamente)
+  if (idReal !== idCategoria) {
+    idsDescendientes.push(idCategoria);
+  }
+
   const productosFiltrados = estadoApp.productos.filter(p =>
     p.categoriaIds && p.categoriaIds.some(cid => idsDescendientes.includes(cid))
   );
+
+  // Resetear paginación al cambiar de categoría/subcategoría
+  estadoApp.filtrosProductos.pagina = 1;
 
   return `
     <section class="space-y-4">
@@ -943,25 +970,25 @@ function vistaHome() {
       </div>
 
 
-      <!-- ========== CATEGORÍAS DESTACADAS (rediseño moderno) ========== -->
+      <!-- ========== CATEGORÍAS DESTACADAS (rediseño moderno con íconos reales) ========== -->
       <section>
         <h3 class="text-xl font-bold text-chapinAzulDark mb-4">Categorías destacadas</h3>
         <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-          ${categoriasDestacadas.map((cat) => `
+          ${estadoApp.categoriasDestacadas.length ? estadoApp.categoriasDestacadas.map((cat) => `
             <button data-ir-categoria="${cat.id}"
-              class="group relative bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.12)] 
-                     transition-all duration-300 ease-out p-4 flex flex-col items-center justify-center min-h-[100px]
-                     hover:-translate-y-1 border border-slate-100 hover:border-chapinNaranja/40 focus:outline-none focus-visible:ring-2 ring-chapinNaranja">
-              <!-- Círculo decorativo con la inicial de la categoría (o ícono) -->
-              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-chapinAzul to-chapinAzulClaro text-white
-                          flex items-center justify-center font-bold text-2xl mb-3 shadow-md group-hover:scale-110 transition-transform duration-300">
-                ${cat.nombre.charAt(0).toUpperCase()}
+              class="group relative bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.12)]
+                     transition-all duration-300 ease-out p-4 flex flex-col items-center justify-center min-h-[100px]">
+              <!-- Mostrar ícono desde la BD o inicial -->
+              <div class="w-12 h-12 flex items-center justify-center mb-3">
+                ${cat.icono ? `<img src="${cat.icono}" alt="${cat.nombre}" class="w-full h-full object-contain drop-shadow-md"
+                     onerror="this.style.display='none'; this.parentElement.textContent='${cat.nombre.charAt(0).toUpperCase()}'; this.parentElement.classList.add('text-2xl','font-bold','text-chapinAzul');" />`
+              : `<span class="text-2xl font-bold text-chapinAzul">${cat.nombre.charAt(0).toUpperCase()}</span>`}
               </div>
               <span class="font-semibold text-xs sm:text-sm text-slate-700 group-hover:text-chapinAzul transition-colors duration-200 text-center leading-tight">
                 ${cat.nombre}
               </span>
             </button>
-          `).join('')}
+          `).join('') : `<p class="text-sm text-slate-400 col-span-full text-center">No se pudieron cargar categorías destacadas</p>`}
         </div>
       </section>
 
@@ -1039,22 +1066,38 @@ function configurarEventosVistaHome() {
 
 function gridProductos(listaProductos, opciones = {}) {
   const mostrarPaginacion = !!opciones.mostrarPaginacion;
-  const pagina = opciones.pagina || 1;
+  let pagina = opciones.pagina || 1;
   const porPagina = opciones.porPagina || 12;
 
   let productosPagina = listaProductos;
   let totalPaginas = 1;
 
   if (mostrarPaginacion) {
+    totalPaginas = Math.max(1, Math.ceil(listaProductos.length / porPagina));
+    // Asegurar que la página no exceda el máximo
+    pagina = Math.min(pagina, totalPaginas);
     const inicio = (pagina - 1) * porPagina;
     productosPagina = listaProductos.slice(inicio, inicio + porPagina);
-    totalPaginas = Math.max(1, Math.ceil(listaProductos.length / porPagina));
   }
 
   const heartEmpty = 'https://cdn-icons-png.flaticon.com/512/1077/1077035.png';
   const heartFilled = 'https://cdn-icons-png.flaticon.com/512/833/833472.png';
 
+  const paginacionHTML = mostrarPaginacion ? `
+    <div class="paginacion-container">
+      <button class="paginacion-btn paginacion-btn-left ${pagina <= 1 ? 'paginacion-btn-disabled' : ''}"
+              data-pagina="${pagina - 1}" ${pagina <= 1 ? 'disabled' : ''}>
+        <img src="https://static.vecteezy.com/system/resources/previews/032/851/685/non_2x/left-arrow-3d-illustration-or-left-direction-arrow-3d-icon-free-png.png" alt="Anterior" class="paginacion-icon" />
+      </button>
+      <span class="paginacion-info">Página ${pagina} de ${totalPaginas}</span>
+      <button class="paginacion-btn paginacion-btn-right ${pagina >= totalPaginas ? 'paginacion-btn-disabled' : ''}"
+              data-pagina="${pagina + 1}" ${pagina >= totalPaginas ? 'disabled' : ''}>
+        <img src="https://static.vecteezy.com/system/resources/previews/032/851/469/non_2x/right-arrow-3d-icon-illustration-or-right-direction-arrow-icon-illustration-free-png.png" alt="Siguiente" class="paginacion-icon" />
+      </button>
+    </div>` : '';
+
   return `
+    ${mostrarPaginacion ? paginacionHTML : ''}
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
       ${productosPagina.map((p) => {
     const precio = Number(p.precio ?? 0);
@@ -1099,19 +1142,7 @@ function gridProductos(listaProductos, opciones = {}) {
         `;
   }).join('')}
     </div>
-    ${mostrarPaginacion ? `
-      <div class="flex items-center justify-center gap-2 mt-4 text-sm">
-        <button class="px-3 py-1 border rounded-full ${pagina <= 1 ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
-                data-pagina="${pagina - 1}" ${pagina <= 1 ? 'disabled' : ''}>
-          ◀
-        </button>
-        <span>Página ${pagina} de ${totalPaginas}</span>
-        <button class="px-3 py-1 border rounded-full ${pagina >= totalPaginas ? 'opacity-40 cursor-default' : 'hover:bg-slate-100'}"
-                data-pagina="${pagina + 1}" ${pagina >= totalPaginas ? 'disabled' : ''}>
-          ▶
-        </button>
-      </div>` : ''
-    }
+    ${mostrarPaginacion ? paginacionHTML : ''}
   `;
 }
 
@@ -1304,11 +1335,29 @@ function configurarEventosVistaDetalleProducto() {
       const indice = parseInt(btn.dataset.miniaturaIndex);
       if (producto.imagenes && producto.imagenes[indice]) {
         imagenPrincipal.src = producto.imagenes[indice];
+        // Al cambiar de imagen, quitamos el zoom si estuviera activo
+        imagenPrincipal.classList.remove('zoom-activo');
       }
       miniaturas.forEach((b) => b.classList.remove('activa'));
       btn.classList.add('activa');
     });
   });
+
+  // --- ZOOM en imagen principal ---
+  if (imagenPrincipal) {
+    // Activar / desactivar al hacer clic en la imagen
+    imagenPrincipal.addEventListener('click', (e) => {
+      e.stopPropagation();
+      imagenPrincipal.classList.toggle('zoom-activo');
+    });
+
+    // Desactivar el zoom al hacer clic en cualquier parte fuera de la imagen
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#detalle-imagen-principal')) {
+        imagenPrincipal.classList.remove('zoom-activo');
+      }
+    });
+  }
 
   // Agregar al carrito
   const btnAgregar = document.getElementById('detalle-agregar-carrito');
@@ -2490,7 +2539,7 @@ function tabDirecciones(direcciones) {
                         id="btn-etiqueta-seleccionada">
                   <img id="etiqueta-icon" src="${ICONOS.casa}" class="w-5 h-5 object-contain" alt="" />
                   <span id="etiqueta-texto">Casa</span>
-                  <span class="ml-auto text-slate-400 text-xs">▼</span>
+                  <span class="ml-auto text-slate-400 text-xs">🢃</span>
                 </button>
                 <div class="custom-select-options hidden absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg">
                   <div class="option-item flex items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer" data-value="Casa" data-icon="${ICONOS.casa}">
@@ -3594,24 +3643,33 @@ function construirArbolCategoriasHTML() {
 
   const construirLista = (padreId, nivel) => {
     const hijos = mapaHijos.get(padreId === null ? 'raiz' : padreId) || [];
-
     if (!hijos.length) return '';
 
-    let html = `<ul class="ml-${nivel * 3}">`;
+    let html = '';
     for (const hijo of hijos) {
-      html += `
-        <li class="flex items-center justify-between mb-1">
-          <button class="texto-categoria inline text-left text-[13px] py-0.5" data-id-cat="${hijo.id}">
-            ${'— '.repeat(nivel)}${hijo.nombre}
-          </button>
-        </li>`;
-      html += construirLista(hijo.id, nivel + 1);
+      const tieneHijos = mapaHijos.has(hijo.id);
+      html += `<li class="mb-1">`;
+      html += `<div class="flex items-center gap-1">`;
+      if (tieneHijos) {
+        html += `<button class="categoria-toggle text-xs w-4 h-4 flex items-center justify-center text-slate-500 hover:text-chapinAzul" data-cat-toggle="${hijo.id}">🢂</button>`;
+      } else {
+        html += `<span class="w-4 h-4 inline-block"></span>`; // reservar espacio
+      }
+      html += `<button class="texto-categoria inline text-left text-[13px] py-0.5 hover:text-chapinNaranja" data-id-cat="${hijo.id}">
+                 ${hijo.nombre}
+               </button>`;
+      html += `</div>`;
+      if (tieneHijos) {
+        html += `<ul class="categoria-hijos ml-4 hidden" data-cat-children="${hijo.id}">`;
+        html += construirLista(hijo.id, nivel + 1);
+        html += `</ul>`;
+      }
+      html += `</li>`;
     }
-    html += `</ul>`;
     return html;
   };
 
-  return construirLista(null, 0);
+  return `<ul class="categoria-arbol">${construirLista(null, 0)}</ul>`;
 }
 
 function configurarEventosVistaAdmin() {
@@ -3824,11 +3882,30 @@ function filtrarProductos(productos) {
 }
 
 function configurarEventosVistaTodasCategorias() {
-
+  // Navegación al hacer clic en el nombre de la categoría
   document.querySelectorAll('.texto-categoria').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.idCat);
       if (!isNaN(id)) window.location.hash = `#/categoria/${id}`;
+    });
+  });
+
+  // Colapsar/expandir ramas del árbol
+  document.querySelectorAll('.categoria-toggle').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const catId = btn.dataset.catToggle;
+      const ulHijos = document.querySelector(`ul[data-cat-children="${catId}"]`);
+      if (ulHijos) {
+        const oculto = ulHijos.classList.contains('hidden');
+        if (oculto) {
+          ulHijos.classList.remove('hidden');
+          btn.textContent = '🢃';
+        } else {
+          ulHijos.classList.add('hidden');
+          btn.textContent = '🢂';
+        }
+      }
     });
   });
 
@@ -3838,7 +3915,6 @@ function configurarEventosVistaTodasCategorias() {
   const btnLimpiar = document.getElementById('btn-limpiar-filtros');
 
   const aplicarFiltros = () => {
-    // Guardar valores en estadoApp
     estadoApp.filtrosProductos.precioMin = inputMin.value !== '' ? parseFloat(inputMin.value) : null;
     estadoApp.filtrosProductos.precioMax = inputMax.value !== '' ? parseFloat(inputMax.value) : null;
     estadoApp.filtrosProductos.estado = selectEstado.value;
@@ -4564,6 +4640,18 @@ function configurarEventosGlobales() {
     });
   }
 
+  // Navegación desde el footer
+  document.querySelectorAll('[data-footer-nav]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const hash = link.getAttribute('href');
+      if (hash) {
+        window.location.hash = hash;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  });
+
   document.addEventListener('click', (e) => {
     const target = e.target;
     const panelCarrito = document.getElementById('panel-carrito');
@@ -4780,11 +4868,24 @@ function iniciarHeroRotativo() {
 
 function actualizarTextoUsuario() {
   const texto = document.getElementById('texto-usuario-actual');
-  if (!texto) return;
-  if (estadoApp.usuarioActual) {
-    texto.textContent = estadoApp.usuarioActual.nombre;
-  } else {
-    texto.textContent = 'Iniciar sesión';
+  if (texto) {
+    if (estadoApp.usuarioActual) {
+      texto.textContent = estadoApp.usuarioActual.nombre;
+    } else {
+      texto.textContent = 'Iniciar sesión';
+    }
+  }
+
+  // Actualizar enlace dinámico del footer
+  const footerAuthLink = document.getElementById('footer-link-auth');
+  if (footerAuthLink) {
+    if (estadoApp.usuarioActual) {
+      footerAuthLink.textContent = 'Perfil';
+      footerAuthLink.setAttribute('href', '#/perfil');
+    } else {
+      footerAuthLink.textContent = 'Iniciar Sesión';
+      footerAuthLink.setAttribute('href', '#/login');
+    }
   }
 }
 
