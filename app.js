@@ -43,6 +43,7 @@ const ICONOS = {
   casa: 'https://cdn3d.iconscout.com/3d/premium/thumb/casa-3d-icon-png-download-5073133.png',
   trabajo: 'https://cdn3d.iconscout.com/3d/premium/thumb/edificio-de-la-empresa-3d-icon-png-download-13354467.png',
   otroUbicacion: 'https://cdn-icons-png.flaticon.com/512/10740/10740581.png',
+  guardar: 'https://cdn3d.iconscout.com/3d/premium/thumb/guardar-datos-3d-icon-png-download-6325216.png',
   actualizarContrasena: 'https://cdn3d.iconscout.com/3d/premium/thumb/contrasena-3d-icon-png-download-5114950.png',
   seguridadTarjeta: 'https://cdn3d.iconscout.com/3d/premium/thumb/escudo-de-seguridad-cibernetica-3d-icon-png-download-8270466.png',
   estrella: 'https://cdn-icons-png.flaticon.com/512/1828/1828884.png',
@@ -53,7 +54,6 @@ const ICONOS = {
   mas: 'https://static.vecteezy.com/system/resources/thumbnails/070/914/700/small/a-3d-rendering-of-a-shiny-blue-plus-sign-isolated-on-transparent-background-png.png',
   menos: 'https://cdn3d.iconscout.com/3d/premium/thumb/signo-menos-3d-icon-png-download-11537486.png',
   cerrar: 'https://marketplace.canva.com/hqy4I/MAGFdxhqy4I/1/tl/canva-3d-close-icon-MAGFdxhqy4I.png',
-  // Nuevos íconos de tarjetas
   tarjetaVisa: 'https://cdn-icons-png.flaticon.com/512/349/349221.png',
   tarjetaMastercard: 'https://cdn-icons-png.flaticon.com/512/349/349228.png',
   tarjetaAmericanExpress: 'https://cdn-icons-png.flaticon.com/512/349/349230.png',
@@ -63,7 +63,6 @@ const ICONOS = {
 let costoEnvio = 0;
 const productosAgregandoCarrito = new Set();
 
-// Fuerza la ocultación del overlay después de 10 segundos (por si algo falla)
 let forceHideTimeout = setTimeout(() => {
   const overlay = document.getElementById('overlay-carga');
   if (overlay && !overlay.classList.contains('hidden')) {
@@ -76,10 +75,7 @@ let forceHideTimeout = setTimeout(() => {
   }
 }, 10000);
 
-// ================================================================
-// NUEVO SISTEMA DE PANTALLA DE CARGA CON PROGRESO REAL
-// ================================================================
-const totalSteps = 6; // etapas del proceso de inicialización
+const totalSteps = 6;
 let currentStep = 0;
 
 function actualizarProgreso(incremento) {
@@ -97,8 +93,7 @@ function actualizarProgreso(incremento) {
 function ocultarPantallaCarga() {
   const overlay = document.getElementById('overlay-carga');
   if (overlay) {
-    overlay.classList.add('cargado'); // activa fade-out
-    // Eliminar del DOM después de la transición
+    overlay.classList.add('cargado');
     overlay.addEventListener('transitionend', () => {
       overlay.remove();
     }, { once: true });
@@ -106,8 +101,6 @@ function ocultarPantallaCarga() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Timeout de seguridad: si el backend no responde en 10 segundos,
-  // forzamos la ocultación del overlay y mostramos un mensaje.
   let forceHideTimeout = setTimeout(() => {
     const overlay = document.getElementById('overlay-carga');
     if (overlay && !overlay.classList.contains('hidden')) {
@@ -122,26 +115,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     document.getElementById('anio-actual').textContent = new Date().getFullYear();
-    // El overlay ya está visible sin "hidden", se muestra inmediatamente.
-    actualizarProgreso(0); // Arranca en 0% (barra visible desde el HTML)
-
-    // Datos iniciales (categorías, productos, temporadas) – primer gran bloque
+    actualizarProgreso(0);
     await cargarDatosIniciales();
-    actualizarProgreso(2); // avanza 2 etapas (valor: 2/6 ≈ 33%)
-
-    // Restaurar sesión
+    actualizarProgreso(2);
     await restaurarSesionDesdeApi();
-    actualizarProgreso(1); // 3/6 = 50%
-
-    // Restaurar carrito
+    actualizarProgreso(1);
     await restaurarCarritoDesdeApi();
-    actualizarProgreso(1); // 4/6 ≈ 66%
-
-    // Cargar favoritos
+    actualizarProgreso(1);
     await cargarFavoritos();
-    actualizarProgreso(1); // 5/6 ≈ 83%
-
-    // Forzar actualización visual del carrito
+    actualizarProgreso(1);
     await new Promise(resolve => setTimeout(resolve, 100));
     actualizarIconoCarrito();
     actualizarPanelCarrito();
@@ -149,14 +131,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderizarVista();
     }
 
-    // Último paso: completamos al 100%
-    actualizarProgreso(1); // 6/6 = 100%
+    actualizarProgreso(1);
 
-    // Pequeña pausa para que se vea el 100% antes de desvanecer
     await new Promise(resolve => setTimeout(resolve, 400));
     ocultarPantallaCarga();
 
-    // Continuar con el resto de la configuración que no depende de carga
     configurarEventosGlobales();
     configurarHeaderScroll();
     configurarRouter();
@@ -181,7 +160,6 @@ function obtenerIconoTarjeta(tipo) {
 }
 
 function cerrarTodosLosPaneles(excepcion = null) {
-  // Carrito
   if (excepcion !== 'carrito') {
     const panelCarrito = document.getElementById('panel-carrito');
     if (panelCarrito && !panelCarrito.classList.contains('translate-x-full')) {
@@ -189,7 +167,6 @@ function cerrarTodosLosPaneles(excepcion = null) {
     }
   }
 
-  // Dropdown categorías desktop
   if (excepcion !== 'categorias') {
     const dropdown = document.getElementById('dropdown-categorias');
     const flecha = document.getElementById('flecha-categorias');
@@ -202,13 +179,11 @@ function cerrarTodosLosPaneles(excepcion = null) {
     }
   }
 
-  // Menú móvil (hamburguesa)
   if (excepcion !== 'menu-movil') {
     const menuPanel = document.getElementById('panel-menu-movil');
     if (menuPanel && menuPanel.classList.contains('menu-abierto')) {
       menuPanel.classList.remove('menu-abierto');
     }
-    // También cierra el submenú de categorías dentro del menú móvil
     const submenuCat = document.getElementById('submenu-categorias-movil');
     const flechaCatMovil = document.getElementById('flecha-categorias-movil');
     if (submenuCat) submenuCat.classList.add('hidden');
@@ -218,7 +193,6 @@ function cerrarTodosLosPaneles(excepcion = null) {
 
 async function cargarDatosIniciales() {
   try {
-    // Peticiones individuales con manejo de error por separado
     const respCategorias = await llamarApi('/public/categorias').catch(e => ({ ok: false, datos: [] }));
     const respProductos = await llamarApi('/public/productos').catch(e => ({ ok: false, datos: [] }));
     const respTemporadas = await llamarApi('/public/temporadas').catch(e => ({ ok: false, datos: [] }));
@@ -292,7 +266,6 @@ async function cargarDatosIniciales() {
     construirMegaMenu();
     construirMenuMovilCategorias();
 
-    // Si todas las respuestas fallaron, mostrar mensaje amigable
     if (!respCategorias.ok && !respProductos.ok && !respTemporadas.ok) {
       mostrarModal('Error de conexión', '<p>No se pudo cargar la información del servidor. Verifica que el backend esté funcionando y que la base de datos Oracle esté activa.</p>');
     }
@@ -338,17 +311,27 @@ async function restaurarSesionDesdeApi() {
     console.warn('Fallo /auth/me, intentando recuperar de localStorage', e);
   }
 
-  // Fallback: recuperar de localStorage
+  // Fallback: recuperar de localStorage y reintentar con ?uid= para restaurar sesión PHP
   const datosLocales = localStorage.getItem('chapinMarket_usuario');
   if (datosLocales) {
     try {
       const usuario = JSON.parse(datosLocales);
       if (usuario && usuario.id) {
+        // Reintentar llamada con uid para que PHP establezca la sesión
+        const uid = usuario.id;
+        const respRetry = await llamarApi(`/public/auth/me?uid=${uid}`, { method: 'GET' });
+        if (respRetry.ok && respRetry.datos) {
+          estadoApp.usuarioActual = respRetry.datos;
+          guardarSesionEnLocalStorage();
+          actualizarTextoUsuario();
+          await cargarFavoritos();
+          console.log('Sesión restaurada desde localStorage y confirmada por backend');
+          return;
+        }
+        // Si el reintento falla, mantenemos los datos locales
         estadoApp.usuarioActual = usuario;
         actualizarTextoUsuario();
-        console.log('Sesión restaurada desde localStorage');
-        // Cargar datos completos en segundo plano
-        cargarPerfilCompletoDesdeLocalStorage();
+        console.log('Sesión restaurada solo desde localStorage (backend no confirmó)');
         return;
       }
     } catch (e) { }
@@ -356,7 +339,6 @@ async function restaurarSesionDesdeApi() {
   estadoApp.usuarioActual = null;
 }
 
-// Nueva función auxiliar para cargar el perfil completo usando el id de localStorage
 async function cargarPerfilCompletoDesdeLocalStorage() {
   const uid = estadoApp.usuarioActual?.id;
   if (!uid) return;
@@ -402,7 +384,6 @@ async function toggleFavorito(productoId) {
         estadoApp.favoritos.push(id);
       }
     }
-    // Re-renderizar la vista actual para reflejar cambios (corazones)
     if (['home', 'categoria', 'categorias', 'promociones', 'producto'].includes(estadoApp.vistaActual)) {
       renderizarVista();
     }
@@ -617,34 +598,28 @@ const EMOJIS_CATEGORIA = {};
 function obtenerImagenProducto(producto) {
   if (!producto) return '';
 
-  // Array de posibles campos de imagen a verificar
   const posiblesCampos = [
-    'imagen',           // Campo 'imagen' que usamos en el carrito
-    'imagenes',         // Campo 'imagenes' (puede ser string o array)
-    'IMAGENES',         // Campo en mayúsculas del backend
-    'IMAGEN',           // Campo alternativo
-    'imagenPrincipal'   // Campo adicional
+    'imagen',
+    'imagenes',
+    'IMAGENES',
+    'IMAGEN',
+    'imagenPrincipal'
   ];
 
-  // Función auxiliar para validar si es una URL válida
   const esUrlValida = (url) => {
     if (!url || typeof url !== 'string') return false;
     url = url.trim();
     if (url === '' || url === 'null' || url === 'undefined') return false;
-    // Verificar si es una URL válida (http, https, o data:image)
     return (url.startsWith('http') || url.startsWith('data:image') || url.startsWith('/'));
   };
 
-  // Buscar en todos los campos posibles
   for (const campo of posiblesCampos) {
     const valor = producto[campo];
     if (!valor) continue;
 
-    // Si es un string
     if (typeof valor === 'string') {
       const urlLimpia = valor.trim();
       if (esUrlValida(urlLimpia)) {
-        // Si parece ser JSON, intentar decodificar
         if (urlLimpia.startsWith('[') || urlLimpia.startsWith('{"')) {
           try {
             const parsed = JSON.parse(urlLimpia);
@@ -655,14 +630,12 @@ function obtenerImagenProducto(producto) {
               return parsed;
             }
           } catch (e) {
-            // No es JSON válido, continuar
           }
         }
         return urlLimpia;
       }
     }
 
-    // Si es un array
     if (Array.isArray(valor) && valor.length > 0) {
       const primeraImagen = valor[0];
       if (typeof primeraImagen === 'string' && esUrlValida(primeraImagen)) {
@@ -670,7 +643,6 @@ function obtenerImagenProducto(producto) {
       }
     }
 
-    // Si es un objeto (caso CLOB de Oracle)
     if (typeof valor === 'object' && valor !== null) {
       if (valor.load && typeof valor.load === 'function') {
         try {
@@ -685,7 +657,6 @@ function obtenerImagenProducto(producto) {
     }
   }
 
-  // Si no se encontró ninguna imagen válida, retornar imagen por defecto
   return 'https://via.placeholder.com/300x300?text=Sin+Imagen';
 }
 
@@ -1100,11 +1071,12 @@ function gridProductos(listaProductos, opciones = {}) {
               <button data-ver-producto="${p.id}">
                 <img src="${img}" alt="${p.nombre || 'Producto'}" onerror="this.style.display='none'" />
               </button>
-              <!-- Icono de favorito -->
-              <div class="product-card-fav" data-toggle-fav="${p.id}">
-                <img src="${esFavorito ? heartFilled : heartEmpty}" alt="Favorito" />
-              </div>
               ${promo ? '<span class="absolute top-1 left-1 bg-chapinNaranja text-white text-[10px] px-2 py-0.5 rounded-full">Promo</span>' : ''}
+            </div>
+
+            <!-- Ícono de favorito FUERA del wrapper de imagen, anclado a la tarjeta -->
+            <div class="product-card-fav" data-toggle-fav="${p.id}">
+              <img src="${esFavorito ? heartFilled : heartEmpty}" alt="Favorito" />
             </div>
 
             <div class="product-card-body">
@@ -1162,7 +1134,6 @@ function configurarEventosGridProductos(contenedorSelector, listaCompleta) {
       return;
     }
 
-    // Dentro de configurarEventosGridProductos, en el listener de clic:
     const btnFavorito = evento.target.closest('[data-toggle-fav]');
     if (btnFavorito) {
       const id = parseInt(btnFavorito.dataset.toggleFav);
@@ -1234,48 +1205,85 @@ function vistaDetalleProducto(idProducto) {
     imagenes = [];
   }
 
-  const tieneImagenes = imagenes.length > 0 && imagenes[0];
-  const imagenPrincipal = tieneImagenes ? imagenes[0] : '';
+  const imagenPrincipal = imagenes.length > 0 ? imagenes[0] : '';
   const stockDisponible = obtenerStockProducto(producto);
   const estaAgotado = stockDisponible <= 0;
 
   return `
-    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <div class="relative w-full pb-[100%] bg-white rounded-lg overflow-hidden shadow-sm mb-2">
-          <img id="detalle-imagen-principal" src="${imagenPrincipal}" alt="${producto.nombre}" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.display='none'" />
+    <section class="producto-detalle">
+      <!-- Galería de imágenes -->
+      <div class="producto-imagenes">
+        <div class="imagen-principal-wrapper">
+          <img id="detalle-imagen-principal" src="${imagenPrincipal}" alt="${producto.nombre}"
+               onerror="this.style.display='none'" />
         </div>
-        <div class="flex gap-2 overflow-x-auto pb-1">
+        <div class="miniaturas">
           ${imagenes.map((img, indice) => `
-            <button data-miniatura-index="${indice}" class="relative w-16 h-16 rounded-md overflow-hidden border ${indice === 0 ? 'border-chapinNaranja' : 'border-transparent'}">
-              <img src="${img}" alt="Imagen ${indice + 1}" class="w-full h-full object-cover" />
-            </button>`
-  ).join('')}
+            <button data-miniatura-index="${indice}" class="miniatura-btn ${indice === 0 ? 'activa' : ''}">
+              <img src="${img}" alt="Imagen ${indice + 1}" />
+            </button>`).join('')}
         </div>
       </div>
-      <div class="space-y-3 text-sm">
-        <h1 class="text-base sm:text-lg font-semibold">${producto.nombre}</h1>
-        <div class="flex items-center gap-2">
-          <div class="text-2xl font-bold text-chapinAzul">Q${producto.precio.toFixed(2)}</div>
-          ${promo ? `<span class="text-xs bg-chapinNaranja text-white px-2 py-0.5 rounded-full">Promoción ${temporadaNombre ? ' - ' + temporadaNombre : ''}</span>` : ''}
+
+      <!-- Información del producto -->
+      <div class="space-y-4">
+        <h1 class="text-2xl font-bold text-gray-900">${producto.nombre}</h1>
+        <div class="flex items-center gap-3">
+          <div class="text-3xl font-extrabold text-chapinAzul">Q${producto.precio.toFixed(2)}</div>
+          ${promo ? `<span class="text-xs bg-chapinNaranja text-white px-3 py-1 rounded-full">Promoción ${temporadaNombre || ''}</span>` : ''}
         </div>
-        <p class="text-slate-700">${producto.descripcion}</p>
-        ${estaAgotado ? productoAgotadoHTML('mt-2') : `
-          <p class="text-xs text-slate-500">Stock disponible: ${stockDisponible}</p>
-          <div class="flex items-center gap-2">
-            <label class="text-xs" for="detalle-cantidad">Cantidad:</label>
-            <input id="detalle-cantidad" type="number" min="1" max="${stockDisponible}" value="1"
-                   class="w-20 border rounded-md px-2 py-1 text-xs" />
+
+        <!-- Sección de calificación promedio + acción del usuario -->
+        <div class="rating-section-wrapper">
+          <div class="rating-section" id="rating-promedio">
+            <div class="stars-container" id="estrellas-promedio">${renderEstrellas(5, 0)}</div>
+            <span class="rating-numero" id="rating-numero">0.0</span>
+            <span class="rating-total" id="rating-total">(0 votos)</span>
           </div>
-          <div class="flex flex-wrap gap-2 mt-2">
-            <button id="detalle-agregar-carrito" data-id-producto="${producto.id}" class="flex-1 bg-chapinAzul text-white py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-chapinAzulClaro">
+          <div id="user-rating-area" class="user-rating-area mt-2">
+            <!-- se llena dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Acciones de compra -->
+        ${estaAgotado ? productoAgotadoHTML('text-lg') : `
+          <p class="text-sm text-slate-500">Stock disponible: ${stockDisponible}</p>
+          <div class="flex items-center gap-3">
+            <label class="text-sm font-medium" for="detalle-cantidad">Cantidad:</label>
+            <input id="detalle-cantidad" type="number" min="1" max="${stockDisponible}" value="1"
+                   class="w-20 border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div class="flex flex-wrap gap-3 mt-3">
+            <button id="detalle-agregar-carrito" data-id-producto="${producto.id}"
+                    class="flex-1 bg-chapinAzul text-white py-3 rounded-full text-sm font-semibold hover:bg-chapinAzulClaro transition">
               Agregar al carrito
             </button>
-            <button id="detalle-comprar-ahora" data-id-producto="${producto.id}" class="flex-1 bg-chapinNaranja text-white py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-orange-500">
+            <button id="detalle-comprar-ahora" data-id-producto="${producto.id}"
+                    class="flex-1 bg-chapinNaranja text-white py-3 rounded-full text-sm font-semibold hover:bg-orange-500 transition">
               Comprar ahora
             </button>
           </div>
         `}
+
+        <!-- Descripción -->
+        <div class="prose prose-sm max-w-none text-slate-700">
+          <h3 class="text-lg font-semibold mb-2">Descripción</h3>
+          <p>${producto.descripcion || 'Sin descripción disponible.'}</p>
+        </div>
+
+        <!-- Reseñas -->
+        <div class="resenas-section" id="seccion-resenas">
+          <h3 class="text-lg font-semibold mb-3">Reseñas</h3>
+          <div id="resenas-lista"></div>
+          ${estadoApp.usuarioActual ? `
+            <div class="mt-4">
+              <textarea id="resena-comentario" class="textarea-resena" placeholder="Escribe tu reseña (máx. 500 caracteres)" maxlength="500"></textarea>
+              <button id="btn-enviar-resena" class="boton-resena mt-2">Enviar reseña</button>
+            </div>
+          ` : `
+            <p class="text-sm text-slate-500">Inicia sesión para dejar una reseña.</p>
+          `}
+        </div>
       </div>
     </section>
   `;
@@ -1285,21 +1293,24 @@ function configurarEventosVistaDetalleProducto() {
   const miniaturas = document.querySelectorAll('[data-miniatura-index]');
   const imagenPrincipal = document.getElementById('detalle-imagen-principal');
   const btnAgregarElem = document.getElementById('detalle-agregar-carrito');
-  const productoId = parseInt(btnAgregarElem?.dataset.idProducto || window.location.hash.split('/').pop());
+  const productoId = btnAgregarElem ? parseInt(btnAgregarElem.dataset.idProducto) :
+    parseInt(window.location.hash.split('/').pop());
   const producto = estadoApp.productos.find((p) => p.id === productoId);
   if (!producto) return;
 
+  // Galería de imágenes
   miniaturas.forEach((btn) => {
     btn.addEventListener('click', () => {
       const indice = parseInt(btn.dataset.miniaturaIndex);
-      if (producto.imagenes[indice]) {
+      if (producto.imagenes && producto.imagenes[indice]) {
         imagenPrincipal.src = producto.imagenes[indice];
       }
-      miniaturas.forEach((b) => b.classList.remove('border-chapinNaranja'));
-      btn.classList.add('border-chapinNaranja');
+      miniaturas.forEach((b) => b.classList.remove('activa'));
+      btn.classList.add('activa');
     });
   });
 
+  // Agregar al carrito
   const btnAgregar = document.getElementById('detalle-agregar-carrito');
   const inputCantidad = document.getElementById('detalle-cantidad');
   if (btnAgregar && inputCantidad) {
@@ -1311,6 +1322,7 @@ function configurarEventosVistaDetalleProducto() {
     });
   }
 
+  // Comprar ahora
   const btnComprarAhora = document.getElementById('detalle-comprar-ahora');
   if (btnComprarAhora && inputCantidad) {
     btnComprarAhora.addEventListener('click', async () => {
@@ -1320,6 +1332,16 @@ function configurarEventosVistaDetalleProducto() {
       const agregado = await agregarAlCarrito(productoId, cantidad);
       if (agregado) window.location.hash = '#/checkout';
     });
+  }
+
+  // Cargar calificaciones y reseñas
+  cargarCalificacionProducto(productoId);
+  cargarResenasProducto(productoId);
+
+  // Envío de reseña
+  const btnResena = document.getElementById('btn-enviar-resena');
+  if (btnResena) {
+    btnResena.addEventListener('click', () => enviarResena(productoId));
   }
 }
 
@@ -1392,7 +1414,7 @@ function vistaPromociones() {
 }
 
 function configurarEventosVistaPromociones() {
-  // Toggle de productos en cada tarjeta
+
   document.querySelectorAll('[data-toggle-promo]').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = btn.dataset.togglePromo;
@@ -1414,9 +1436,7 @@ function configurarEventosVistaPromociones() {
   configurarEventosBotonesAgregarCarrito();
 }
 
-// Función EN app.js - NO REQUIERE CAMBIOS para la solicitud actual
 function vistaCarritoCompleto() {
-  // ... código existente hasta la parte de generar filas ...
   let itemsValidos = 0;
   let totalGeneral = 0;
   let subtotalSeleccionados = 0;
@@ -1444,23 +1464,18 @@ function vistaCarritoCompleto() {
       totalGeneral += subtotalProducto;
       if (item.seleccionado) subtotalSeleccionados += subtotalProducto;
 
-      // OBTENER LA IMAGEN CORRECTAMENTE
       let imagenUrl = '';
 
-      // Priorizar product.imagen (que es la que seteamos en el backend)
       if (producto.imagen && typeof producto.imagen === 'string' && producto.imagen.trim() !== '') {
         imagenUrl = producto.imagen.trim();
       }
-      // Si no, buscar en imagenes[0]
       else if (producto.imagenes && Array.isArray(producto.imagenes) && producto.imagenes.length > 0) {
         imagenUrl = producto.imagenes[0];
       }
-      // Si no, usar la función obtenerImagenProducto
       else {
         imagenUrl = obtenerImagenProducto(producto);
       }
 
-      // Validar que la imagen sea válida
       const tieneImagenValida = imagenUrl &&
         imagenUrl !== '' &&
         imagenUrl !== 'null' &&
@@ -1506,7 +1521,7 @@ function vistaCarritoCompleto() {
     .filter(row => row !== '')
     .join('');
 
-  const envio = 25; // Costo fijo de envío
+  const envio = 25;
   const totalSeleccionadosConEnvio = subtotalSeleccionados + (subtotalSeleccionados > 0 ? envio : 0);
 
   return `
@@ -1788,7 +1803,7 @@ function vistaCheckout() {
 }
 
 function configurarEventosVistaCheckout() {
-  // Botones de pago
+
   const botonesPago = document.querySelectorAll('[data-accion="procesar-pago"]');
   if (!botonesPago.length) return;
 
@@ -1855,7 +1870,6 @@ function configurarEventosVistaCheckout() {
     });
   });
 
-  // ----- Selección de dirección (clic sobre las tarjetas) -----
   const contenedorDirecciones = document.getElementById('contenedor-direcciones-checkout');
   if (contenedorDirecciones) {
     contenedorDirecciones.addEventListener('click', (e) => {
@@ -1880,7 +1894,6 @@ function configurarEventosVistaCheckout() {
     });
   }
 
-  // Mostrar/ocultar formulario de nueva tarjeta
   const formNueva = document.getElementById('form-nueva-tarjeta');
   if (formNueva) {
     document.querySelectorAll('input[name="tarjeta-seleccionada"]').forEach(radio => {
@@ -1959,7 +1972,7 @@ function obtenerDireccionCheckout() {
     const seleccionada = direcciones.find(d => d.id === estadoApp.checkoutDireccionSeleccionadaId);
     if (seleccionada) return seleccionada;
   }
-  // Fallback: predeterminada o primera disponible
+
   return direcciones.find(d => Number(d.esPredeterminada) === 1) || direcciones[0] || null;
 }
 
@@ -2396,7 +2409,6 @@ function vistaPerfil() {
   `;
 }
 
-// Funciones para cada pestaña
 function tabDatosPersonales(usuario) {
   const nombre = usuario?.nombre || 'Cargando...';
   const correo = usuario?.correo || 'Cargando...';
@@ -2421,11 +2433,11 @@ function tabDatosPersonales(usuario) {
           <input type="tel" id="perfil-telefono" value="${usuario.telefono || ''}" placeholder="+502 1234-5678"
                  class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-chapinNaranja">
         </div>
-        <button type="submit" 
-                class="bg-chapinAzul text-white px-8 py-3 rounded-full font-semibold hover:bg-chapinAzulClaro transition">
-          💾 Guardar Cambios
-        </button>
-      </form>
+      <button type="submit" 
+              class="bg-chapinAzul text-white px-8 py-3 rounded-full font-semibold hover:bg-chapinAzulClaro transition flex items-center gap-2">
+        <img src="${ICONOS.guardar}" alt="Guardar" class="w-5 h-5 object-contain" />
+        Guardar Cambios
+      </button>
       <div id="mensaje-datos" class="mt-3 text-sm hidden"></div>
     </div>
   `;
@@ -2453,6 +2465,7 @@ function tabDirecciones(direcciones) {
         </div>
       `).join('')
     : '<p class="text-slate-400 text-sm text-center py-8">No tienes direcciones guardadas</p>';
+
   return `
     <div id="tab-direcciones">
       <div class="flex items-center justify-between mb-4">
@@ -2471,11 +2484,27 @@ function tabDirecciones(direcciones) {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium mb-1">Etiqueta</label>
-              <select id="dir-etiqueta" class="w-full border rounded-lg px-3 py-2 text-sm">
-                <option value="Casa">🏠 Casa</option>
-                <option value="Trabajo">🏢 Trabajo</option>
-                <option value="Otro">📍 Otro</option>
-              </select>
+              <!-- Selector personalizado con íconos -->
+              <div class="custom-select relative">
+                <button type="button" class="custom-select-btn flex items-center gap-2 w-full border rounded-lg px-3 py-2 text-sm bg-white hover:border-chapinNaranja/50 transition"
+                        id="btn-etiqueta-seleccionada">
+                  <img id="etiqueta-icon" src="${ICONOS.casa}" class="w-5 h-5 object-contain" alt="" />
+                  <span id="etiqueta-texto">Casa</span>
+                  <span class="ml-auto text-slate-400 text-xs">▼</span>
+                </button>
+                <div class="custom-select-options hidden absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg">
+                  <div class="option-item flex items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer" data-value="Casa" data-icon="${ICONOS.casa}">
+                    <img src="${ICONOS.casa}" class="w-5 h-5 object-contain" alt="" /> <span>Casa</span>
+                  </div>
+                  <div class="option-item flex items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer" data-value="Trabajo" data-icon="${ICONOS.trabajo}">
+                    <img src="${ICONOS.trabajo}" class="w-5 h-5 object-contain" alt="" /> <span>Trabajo</span>
+                  </div>
+                  <div class="option-item flex items-center gap-2 px-3 py-2 hover:bg-slate-100 cursor-pointer" data-value="Otro" data-icon="${ICONOS.otroUbicacion}">
+                    <img src="${ICONOS.otroUbicacion}" class="w-5 h-5 object-contain" alt="" /> <span>Otro</span>
+                  </div>
+                </div>
+                <input type="hidden" id="dir-etiqueta" value="Casa" />
+              </div>
             </div>
             <div>
               <label class="block text-xs font-medium mb-1">Código Postal</label>
@@ -2811,11 +2840,9 @@ async function configurarEventosVistaDetallePedido(idPedido) {
 }
 
 function configurarEventosVistaPerfil() {
-  // Variables para almacenar datos completos del perfil
   let perfilCompleto = null;
   let cargando = false;
 
-  // Cargar datos completos del perfil
   async function cargarPerfilCompleto() {
     if (cargando) return;
     cargando = true;
@@ -2846,7 +2873,6 @@ function configurarEventosVistaPerfil() {
     }
   }
 
-  // Función para recargar y actualizar pestaña específica
   async function cargarPerfilCompletoYActualizarTab(tabName) {
     try {
       const uid = estadoApp.usuarioActual?.id || JSON.parse(localStorage.getItem('chapinMarket_usuario'))?.id;
@@ -2867,7 +2893,6 @@ function configurarEventosVistaPerfil() {
         guardarSesionEnLocalStorage();
         actualizarTextoUsuario();
 
-        // Actualizar solo el contenido de la pestaña activa
         const tabContent = document.getElementById('perfil-tab-content');
         if (tabContent) {
           switch (tabName) {
@@ -2895,7 +2920,6 @@ function configurarEventosVistaPerfil() {
     }
   }
 
-  // ============ PESTAÑAS ============
   document.querySelectorAll('.perfil-tab').forEach(tab => {
     tab.addEventListener('click', async () => {
       // Actualizar estilos de pestañas
@@ -2939,22 +2963,18 @@ function configurarEventosVistaPerfil() {
     });
   });
 
-  // Cargar perfil completo al entrar y luego rellenar campos
-  // Cargar perfil completo al entrar, luego re-renderizar el tab con datos reales de la BD
+
   cargarPerfilCompleto().then(() => {
     const usuario = estadoApp.usuarioActual;
     if (usuario) {
-      // Re-renderizar el tab de datos con los datos frescos del backend
       const tabContent = document.getElementById('perfil-tab-content');
       if (tabContent) {
         tabContent.innerHTML = tabDatosPersonales(usuario);
       }
-      // También actualizar la cabecera del perfil (nombre y correo visibles arriba)
       const h1Perfil = document.querySelector('#vista-principal h1');
       if (h1Perfil) h1Perfil.textContent = usuario.nombre || 'Usuario';
       const emailPerfil = document.querySelector('#vista-principal .text-slate-500');
       if (emailPerfil && usuario.correo) emailPerfil.textContent = usuario.correo;
-      // Actualizar el avatar (inicial del nombre)
       const avatar = document.querySelector('#vista-principal .rounded-full.bg-gradient-to-br');
       if (avatar && usuario.nombre) avatar.textContent = usuario.nombre.charAt(0).toUpperCase();
     }
@@ -3024,12 +3044,10 @@ function configurarEventosTabActiva(tabName) {
       break;
     case 'pedidos':
       configurarTabPedidos();
-      // Solo lectura, no requiere eventos específicos
       break;
   }
 }
 
-// ============ TAB DATOS PERSONALES ============
 function configurarTabDatos() {
   const form = document.getElementById('form-datos-personales');
   if (!form) return;
@@ -3065,7 +3083,6 @@ function configurarTabDatos() {
     if (!mensaje) return;
 
     if (resp.ok) {
-      // Actualizar estado local
       estadoApp.usuarioActual.nombre = nombre;
       estadoApp.usuarioActual.telefono = telefono;
       guardarSesionEnLocalStorage();
@@ -3082,32 +3099,90 @@ function configurarTabDatos() {
   });
 }
 
-// ============ TAB DIRECCIONES ============
 function configurarTabDirecciones() {
   const btnAgregar = document.getElementById('btn-agregar-direccion');
   const formContainer = document.getElementById('form-direccion-container');
   const btnCancelar = document.getElementById('btn-cancelar-direccion');
   const form = document.getElementById('form-direccion');
 
+  const customSelect = document.querySelector('.custom-select');
+  const hiddenInput = document.getElementById('dir-etiqueta');
+
+  const iconMap = {
+    Casa: ICONOS.casa,
+    Trabajo: ICONOS.trabajo,
+    Otro: ICONOS.otroUbicacion
+  };
+
+  if (customSelect) {
+    const btnSelect = customSelect.querySelector('.custom-select-btn');
+    const optionsContainer = customSelect.querySelector('.custom-select-options');
+    const iconPreview = customSelect.querySelector('#etiqueta-icon');
+    const textPreview = customSelect.querySelector('#etiqueta-texto');
+
+    if (btnSelect && optionsContainer) {
+      btnSelect.onclick = (e) => {
+        e.stopPropagation();
+        optionsContainer.classList.toggle('hidden');
+      };
+    }
+
+    customSelect.querySelectorAll('.option-item').forEach((item) => {
+      item.onclick = () => {
+        const value = item.dataset.value;
+
+        if (iconPreview) {
+          iconPreview.src = iconMap[value] || iconMap.Casa;
+        }
+
+        if (textPreview) {
+          textPreview.textContent = value;
+        }
+
+        if (hiddenInput) {
+          hiddenInput.value = value;
+        }
+
+        optionsContainer.classList.add('hidden');
+      };
+    });
+
+    document.addEventListener('click', () => {
+      optionsContainer.classList.add('hidden');
+    });
+  }
+
   if (btnAgregar && formContainer) {
-    btnAgregar.addEventListener('click', () => {
+    btnAgregar.onclick = () => {
       document.getElementById('form-direccion-titulo').textContent = 'Nueva Dirección';
       document.getElementById('dir-id').value = '';
+
       if (form) form.reset();
+
+      if (hiddenInput) hiddenInput.value = 'Casa';
+
+      const iconPreview = document.getElementById('etiqueta-icon');
+      const textPreview = document.getElementById('etiqueta-texto');
+
+      if (iconPreview) iconPreview.src = iconMap.Casa;
+      if (textPreview) textPreview.textContent = 'Casa';
+
       formContainer.classList.remove('hidden');
-    });
+    };
   }
 
   if (btnCancelar && formContainer) {
-    btnCancelar.addEventListener('click', () => {
+    btnCancelar.onclick = () => {
       formContainer.classList.add('hidden');
-    });
+    };
   }
 
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.onsubmit = async (e) => {
       e.preventDefault();
+
       const id = document.getElementById('dir-id').value;
+
       const data = {
         etiqueta: document.getElementById('dir-etiqueta').value,
         linea1: document.getElementById('dir-linea1').value,
@@ -3119,67 +3194,117 @@ function configurarTabDirecciones() {
       };
 
       if (!data.linea1 || !data.linea1.trim()) {
-        mostrarModal('Error', '<p class="text-sm text-red-600">La dirección es requerida</p>');
+        mostrarModal(
+          'Error',
+          '<p class="text-sm text-red-600">La dirección es requerida</p>'
+        );
         return;
       }
 
       const url = id
-        ? '/public/perfil/direcciones/' + id
+        ? `/public/perfil/direcciones/${id}`
         : '/public/perfil/direcciones';
+
       const method = id ? 'PUT' : 'POST';
 
-      const resp = await llamarApi(url, { method, body: JSON.stringify(data) });
+      const resp = await llamarApi(url, {
+        method,
+        body: JSON.stringify(data)
+      });
 
       if (resp.ok) {
-        mostrarModal(id ? 'Dirección actualizada' : 'Dirección agregada',
-          '<p class="text-sm">Los cambios se guardaron correctamente.</p>');
+        mostrarModal(
+          id ? 'Dirección actualizada' : 'Dirección agregada',
+          '<p class="text-sm">Los cambios se guardaron correctamente.</p>'
+        );
+
         formContainer.classList.add('hidden');
-        // Recargar lista de direcciones
+
         await recargarDatosPerfilYActualizarTab('direcciones');
       } else {
-        mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo guardar') + '</p>');
+        mostrarModal(
+          'Error',
+          `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo guardar'
+          }</p>`
+        );
       }
-    });
+    };
   }
 
-  // Botones eliminar dirección
-  document.querySelectorAll('[data-eliminar-direccion]').forEach(btn => {
-    btn.addEventListener('click', async () => {
+  document.querySelectorAll('[data-eliminar-direccion]').forEach((btn) => {
+    btn.onclick = async () => {
       const id = btn.dataset.eliminarDireccion;
+
       if (confirm('¿Eliminar esta dirección?')) {
-        const resp = await llamarApi('/public/perfil/direcciones/' + id, { method: 'DELETE' });
+        const resp = await llamarApi(
+          `/public/perfil/direcciones/${id}`,
+          { method: 'DELETE' }
+        );
+
         if (resp.ok) {
-          mostrarModal('Dirección eliminada', '<p class="text-sm">Se eliminó correctamente.</p>');
+          mostrarModal(
+            'Dirección eliminada',
+            '<p class="text-sm">Se eliminó correctamente.</p>'
+          );
+
           await recargarDatosPerfilYActualizarTab('direcciones');
         } else {
-          mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo eliminar') + '</p>');
+          mostrarModal(
+            'Error',
+            `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo eliminar'
+            }</p>`
+          );
         }
       }
-    });
+    };
   });
 
-  // Botones editar dirección
-  document.querySelectorAll('[data-editar-direccion]').forEach(btn => {
-    btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-editar-direccion]').forEach((btn) => {
+    btn.onclick = () => {
       const id = parseInt(btn.dataset.editarDireccion);
-      const dir = estadoApp.usuarioActual.direcciones?.find(d => d.id === id);
-      if (dir) {
-        document.getElementById('form-direccion-titulo').textContent = 'Editar Dirección';
-        document.getElementById('dir-id').value = dir.id;
-        document.getElementById('dir-etiqueta').value = dir.etiqueta || 'Casa';
-        document.getElementById('dir-linea1').value = dir.linea1 || '';
-        document.getElementById('dir-linea2').value = dir.linea2 || '';
-        document.getElementById('dir-ciudad').value = dir.ciudad || 'Ciudad de Guatemala';
-        document.getElementById('dir-departamento').value = dir.departamento || 'Guatemala';
-        document.getElementById('dir-codigo-postal').value = dir.codigoPostal || '';
-        document.getElementById('dir-predeterminada').checked = dir.esPredeterminada === 1;
-        if (formContainer) formContainer.classList.remove('hidden');
+
+      const dir = estadoApp.usuarioActual.direcciones?.find(
+        (d) => d.id === id
+      );
+
+      if (!dir) return;
+
+      document.getElementById('form-direccion-titulo').textContent =
+        'Editar Dirección';
+
+      document.getElementById('dir-id').value = dir.id;
+      document.getElementById('dir-etiqueta').value = dir.etiqueta || 'Casa';
+      document.getElementById('dir-linea1').value = dir.linea1 || '';
+      document.getElementById('dir-linea2').value = dir.linea2 || '';
+      document.getElementById('dir-ciudad').value =
+        dir.ciudad || 'Ciudad de Guatemala';
+      document.getElementById('dir-departamento').value =
+        dir.departamento || 'Guatemala';
+      document.getElementById('dir-codigo-postal').value =
+        dir.codigoPostal || '';
+      document.getElementById('dir-predeterminada').checked =
+        dir.esPredeterminada === 1;
+
+      const etiqueta = dir.etiqueta || 'Casa';
+
+      const iconPreview = document.getElementById('etiqueta-icon');
+      const textPreview = document.getElementById('etiqueta-texto');
+
+      if (iconPreview) {
+        iconPreview.src = iconMap[etiqueta] || iconMap.Casa;
       }
-    });
+
+      if (textPreview) {
+        textPreview.textContent = etiqueta;
+      }
+
+      if (formContainer) {
+        formContainer.classList.remove('hidden');
+      }
+    };
   });
 }
 
-// ============ TAB SEGURIDAD ============
 function configurarTabSeguridad() {
   const form = document.getElementById('form-cambiar-password');
   if (!form) return;
@@ -3190,7 +3315,6 @@ function configurarTabSeguridad() {
     const passwordNueva = document.getElementById('pass-nueva').value;
     const passwordConfirmar = document.getElementById('pass-confirmar').value;
 
-    // Validaciones frontend completas
     if (!passwordActual || !passwordNueva || !passwordConfirmar) {
       mostrarModal('Error', '<p class="text-sm text-red-600">Todos los campos son requeridos</p>');
       return;
@@ -3236,7 +3360,6 @@ function configurarTabSeguridad() {
   });
 }
 
-// ============ TAB TARJETAS ============
 function configurarTabTarjetas() {
   const btnAgregar = document.getElementById('btn-agregar-tarjeta');
   const formContainer = document.getElementById('form-tarjeta-container');
@@ -3274,10 +3397,8 @@ function configurarTabTarjetas() {
         return;
       }
 
-      // Solo extraer últimos 4 dígitos para seguridad
       const ultimos4 = numeroCompleto.slice(-4);
 
-      // ✅ USAR /perfil/tarjetas (CORREGIDO)
       const resp = await llamarApi('/public/perfil/tarjetas', {
         method: 'POST',
         body: JSON.stringify({
@@ -3293,7 +3414,6 @@ function configurarTabTarjetas() {
           '<p class="text-sm">✅ Tarjeta guardada de forma segura.<br>Solo almacenamos: ****' + ultimos4 + '</p>');
         form.reset();
         formContainer.classList.add('hidden');
-        // Recargar lista de tarjetas
         await recargarDatosPerfilYActualizarTab('tarjetas');
       } else {
         mostrarModal('Error', '<p class="text-sm text-red-600">' + (resp.mensaje || 'No se pudo guardar la tarjeta') + '</p>');
@@ -3301,12 +3421,10 @@ function configurarTabTarjetas() {
     });
   }
 
-  // Eliminar tarjeta
   document.querySelectorAll('[data-eliminar-tarjeta]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.eliminarTarjeta;
       if (confirm('¿Eliminar esta tarjeta?')) {
-        // ✅ USAR /perfil/tarjetas/{id} (CORREGIDO)
         const uid = estadoApp.usuarioActual?.id || JSON.parse(localStorage.getItem('chapinMarket_usuario'))?.id;
         const resp = await llamarApi(`/public/perfil/tarjetas/${id}?uid=${uid}`, { method: 'DELETE' });
         if (resp.ok) {
@@ -3622,13 +3740,11 @@ function configurarEventosVistaAdmin() {
 function vistaTodasCategorias() {
   const arbolHTML = construirArbolCategoriasHTML();
 
-  // Leer filtros actuales desde estadoApp
   const filtros = estadoApp.filtrosProductos;
   const precioMin = filtros.precioMin !== null ? filtros.precioMin : '';
   const precioMax = filtros.precioMax !== null ? filtros.precioMax : '';
   const estadoSeleccionado = filtros.estado || 'todos';
 
-  // Obtener productos filtrados por precio y estado
   let productosFiltrados = filtrarProductos(estadoApp.productos);
 
   return `
@@ -3708,7 +3824,7 @@ function filtrarProductos(productos) {
 }
 
 function configurarEventosVistaTodasCategorias() {
-  // Eventos originales: clic en categorías
+
   document.querySelectorAll('.texto-categoria').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.idCat);
@@ -3716,7 +3832,6 @@ function configurarEventosVistaTodasCategorias() {
     });
   });
 
-  // Eventos para filtros dinámicos
   const inputMin = document.getElementById('filtro-precio-min');
   const inputMax = document.getElementById('filtro-precio-max');
   const selectEstado = document.getElementById('filtro-estado');
@@ -3727,8 +3842,8 @@ function configurarEventosVistaTodasCategorias() {
     estadoApp.filtrosProductos.precioMin = inputMin.value !== '' ? parseFloat(inputMin.value) : null;
     estadoApp.filtrosProductos.precioMax = inputMax.value !== '' ? parseFloat(inputMax.value) : null;
     estadoApp.filtrosProductos.estado = selectEstado.value;
-    estadoApp.filtrosProductos.pagina = 1;   // resetear página
-    renderizarVista();                        // recarga dinámica sin recarga de página
+    estadoApp.filtrosProductos.pagina = 1;
+    renderizarVista();
   };
 
   const limpiarFiltros = () => {
@@ -3743,7 +3858,6 @@ function configurarEventosVistaTodasCategorias() {
   if (selectEstado) selectEstado.addEventListener('change', aplicarFiltros);
   if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
 
-  // Mantener la paginación (ya existe en gridProductos)
   configurarEventosGridProductos('#contenedor-grid-categorias', estadoApp.productos);
   configurarEventosBotonesAgregarCarrito();
 }
@@ -4248,15 +4362,13 @@ async function cerrarSesion() {
       localStorage.removeItem('chapinMarket_usuario');
       actualizarTextoUsuario();
 
-      // --- CORRECCIÓN: desvincular el carrito de la interfaz sin eliminarlo del backend ---
-      estadoApp.carrito = [];                      // limpia la vista actual
-      localStorage.removeItem('chapinMarket_carrito_local'); // evita que una recarga muestre datos viejos
-      actualizarIconoCarrito();                    // badge a 0
-      actualizarPanelCarrito();                    // panel lateral vacío
+      estadoApp.carrito = [];
+      localStorage.removeItem('chapinMarket_carrito_local');
+      actualizarIconoCarrito();
+      actualizarPanelCarrito();
       if (estadoApp.vistaActual === 'carrito') {
-        renderizarVista();                         // si está en la vista de carrito, refréscala
+        renderizarVista();
       }
-      // --- fin corrección ---
 
       window.location.hash = '#/';
       mostrarModal('Sesión cerrada', '<p class="text-sm">Has cerrado sesión correctamente.</p>');
@@ -4297,21 +4409,18 @@ function configurarEventosGlobales() {
   const botonIrPromociones = document.getElementById('boton-ir-promociones');
   const botonIrCategorias = document.getElementById('boton-ir-categorias');
 
-  // --- Logo ---
   if (botonLogo) {
     botonLogo.addEventListener('click', () => {
       window.location.hash = '#/';
     });
   }
 
-  // --- Cerrar carrito ---
   if (cerrarPanel) {
     cerrarPanel.addEventListener('click', () => {
       cerrarPanelCarrito();
     });
   }
 
-  // --- Botón flotante carrito (único acceso) ---
   if (botonFlotanteCarrito) {
     botonFlotanteCarrito.addEventListener('click', () => {
       actualizarPanelCarrito();
@@ -4319,7 +4428,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Botón "Ir a pagar" del carrito ---
   if (btnCheckoutEscritorio) {
     btnCheckoutEscritorio.addEventListener('click', () => {
       cerrarPanelCarrito();
@@ -4327,7 +4435,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Sincronizar contador flotante ---
   if (contadorFlotante) {
     const observer = new MutationObserver(() => {
       const contadorPrincipal = document.getElementById('contador-carrito');
@@ -4341,7 +4448,6 @@ function configurarEventosGlobales() {
     }
   }
 
-  // --- Usuario ---
   if (botonUsuario) {
     botonUsuario.addEventListener('click', () => {
       if (estadoApp.usuarioActual) {
@@ -4352,7 +4458,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Modal general ---
   if (modal && modalCerrar) {
     modalCerrar.addEventListener('click', cerrarModal);
     modal.addEventListener('click', (e) => {
@@ -4360,9 +4465,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // ========== NUEVAS INTERACCIONES ==========
-
-  // --- Ícono de búsqueda clickable (reutiliza lógica de Enter) ---
   if (iconoBusqueda && inputBusqueda) {
     iconoBusqueda.addEventListener('click', () => {
       const valor = inputBusqueda.value.trim();
@@ -4370,7 +4472,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Búsqueda por Enter (desktop) ---
   if (inputBusqueda) {
     inputBusqueda.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -4380,7 +4481,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Dropdown Categorías (click, ya no hover) ---
   if (botonCategorias) {
     botonCategorias.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -4391,7 +4491,7 @@ function configurarEventosGlobales() {
       cerrarTodosLosPaneles(estaAbierto ? null : 'categorias'); // si está abierto lo cerramos
 
       if (!estaAbierto) {
-        // Abrir
+
         if (dropdown) {
           dropdown.classList.remove('hidden');
           dropdown.classList.add('dropdown-abierto');
@@ -4400,7 +4500,6 @@ function configurarEventosGlobales() {
       }
     });
 
-    // Delegación global para favoritos (funciona en cualquier vista)
     document.addEventListener('click', (e) => {
       const btnFav = e.target.closest('[data-toggle-fav]');
       if (!btnFav) return;
@@ -4410,7 +4509,6 @@ function configurarEventosGlobales() {
 
   }
 
-  // --- Hamburger menú (móvil) ---
   if (botonHamburguesa) {
     botonHamburguesa.addEventListener('click', () => {
       const menuPanel = document.getElementById('panel-menu-movil');
@@ -4422,14 +4520,12 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Cerrar menú móvil (botón X) ---
   if (cerrarMenuMovil) {
     cerrarMenuMovil.addEventListener('click', () => {
       cerrarTodosLosPaneles();
     });
   }
 
-  // --- Acordeón de Categorías dentro del menú móvil ---
   if (btnCatMovil) {
     btnCatMovil.addEventListener('click', () => {
       const submenu = document.getElementById('submenu-categorias-movil');
@@ -4447,7 +4543,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // --- Navegación desde el menú móvil ---
   const navegarYcerrar = (hash) => {
     cerrarTodosLosPaneles();
     window.location.hash = hash;
@@ -4469,9 +4564,6 @@ function configurarEventosGlobales() {
     });
   }
 
-  // ========== CIERRE GLOBAL ==========
-
-  // Clic fuera de los paneles activos → cierra todos
   document.addEventListener('click', (e) => {
     const target = e.target;
     const panelCarrito = document.getElementById('panel-carrito');
@@ -4499,26 +4591,17 @@ function configurarEventosGlobales() {
     }
   });
 
-  // Redimensionar ventana → cerrar todo
   window.addEventListener('resize', () => {
     cerrarTodosLosPaneles();
   });
 
-  // ===================================
 }
 
-/**
- * Configura el header para que reaccione al scroll:
- * - Se oculta hacia abajo (después de cierta distancia)
- * - Reaparece hacia arriba
- * - No oculta si hay paneles abiertos (carrito, menú móvil, dropdown categorías)
- */
 function configurarHeaderScroll() {
   const header = document.getElementById('header-principal');
   const main = document.getElementById('main-content');
   if (!header || !main) return;
 
-  // Ajustar padding-top del main para que no tape contenido
   function ajustarPaddingMain() {
     const alturaHeader = header.offsetHeight;
     main.style.paddingTop = (alturaHeader + 10) + 'px';
@@ -4529,21 +4612,19 @@ function configurarHeaderScroll() {
 
   let lastScrollY = window.scrollY;
   let ticking = false;
-  const deltaMinimo = 10; // pequeña zona muerta para evitar parpadeos
+  const deltaMinimo = 10;
 
   function actualizarHeader() {
     const currentScrollY = window.scrollY;
     const diff = currentScrollY - lastScrollY;
     const headerAltura = header.offsetHeight;
 
-    // Verificar si hay algún panel abierto que impida ocultar
     const panelCarritoAbierto = document.getElementById('panel-carrito')?.classList.contains('translate-x-full') === false;
     const menuMovilAbierto = document.getElementById('panel-menu-movil')?.classList.contains('menu-abierto');
     const dropdownAbierto = document.getElementById('dropdown-categorias')?.classList.contains('dropdown-abierto');
     const algunPanelAbierto = panelCarritoAbierto || menuMovilAbierto || dropdownAbierto;
 
     if (algunPanelAbierto) {
-      // Con panel abierto: mostrar solo en la parte superior, ocultar en el resto
       if (currentScrollY <= headerAltura) {
         header.classList.remove('header-oculto');
       } else {
@@ -4570,29 +4651,20 @@ function configurarHeaderScroll() {
     }
   }, { passive: true });
 
-  // Al abrir/cerrar paneles, forzar visibilidad (se cubre con la lógica de arriba,
-  // pero podemos llamar una actualización inmediata tras cambios de panel).
-  // Con la comprobación dentro de actualizarHeader es suficiente.
 }
 
-/**
- * Vuelve a la vista de inicio desde los resultados de búsqueda.
- * Limpia el input de búsqueda y restaura la interfaz principal.
- */
 function volverAlInicioDesdeBusqueda() {
-  // Limpiar el texto del buscador
   const inputBusqueda = document.getElementById('input-busqueda-global');
   if (inputBusqueda) inputBusqueda.value = '';
 
-  // Forzar la vista home sin depender del hash
   estadoApp.vistaActual = 'home';
-  estadoApp.filtrosProductos.texto = '';   // limpiar filtro de búsqueda textual
+  estadoApp.filtrosProductos.texto = '';
   estadoApp.filtrosProductos.pagina = 1;
 
   renderizarVista();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-// Exponer globalmente para que el onclick inline la encuentre
+
 window.volverAlInicioDesdeBusqueda = volverAlInicioDesdeBusqueda;
 
 function mostrarResultadosBusqueda(texto, resultados) {
@@ -4625,7 +4697,6 @@ function iniciarHeroRotativo() {
   let intervalo;
   let transicionEnCurso = false;
 
-  // Configurar estado inicial
   slides.forEach((slide, index) => {
     if (index === 0) {
       slide.classList.remove('opacity-0', 'translate-x-8', 'pointer-events-none');
@@ -4662,11 +4733,9 @@ function iniciarHeroRotativo() {
     const slideActual = slides[currentSlide];
     const slideSiguiente = slides[nuevoIndex];
 
-    // Ocultar slide actual
     slideActual.classList.add('opacity-0', 'translate-x-8', 'pointer-events-none');
     slideActual.classList.remove('opacity-100', 'translate-x-0');
 
-    // Mostrar nuevo slide
     slideSiguiente.classList.remove('opacity-0', 'translate-x-8', 'pointer-events-none');
     slideSiguiente.classList.add('opacity-100', 'translate-x-0');
 
@@ -4683,7 +4752,6 @@ function iniciarHeroRotativo() {
     cambiarASlide(siguiente);
   }
 
-  // Event listeners en los dots
   dots.forEach(dot => {
     dot.addEventListener('click', () => {
       const index = parseInt(dot.dataset.dot);
@@ -4697,10 +4765,8 @@ function iniciarHeroRotativo() {
     intervalo = setInterval(siguienteSlide, 5000);
   }
 
-  // Iniciar rotación automática
   intervalo = setInterval(siguienteSlide, 5000);
 
-  // Pausar al hover
   const heroWrapper = document.querySelector('.hero-wrapper');
   if (heroWrapper) {
     heroWrapper.addEventListener('mouseenter', () => {
@@ -4728,6 +4794,213 @@ async function refrescarCarritoCompleto() {
   actualizarPanelCarrito();
   if (estadoApp.vistaActual === 'carrito') {
     renderizarVista();
+  }
+}
+
+/**
+ * Renderiza estrellas para calificación (visualización o interactivas).
+ * @param {number} total - Cantidad de estrellas (5)
+ * @param {number} seleccionadas - Cuántas estrellas coloreadas (0-5)
+ * @param {boolean} clickable - Si son interactivas
+ * @param {function} onClick - Callback al hacer clic en estrella (índice 1-5)
+ * @returns {string} HTML
+ */
+function renderEstrellas(total, seleccionadas, clickable = false, onClick = null) {
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    const claseGra = i <= seleccionadas ? '' : 'grayscale';
+    const claseClick = clickable ? 'clickable' : '';
+    html += `<span class="star-icon ${claseGra} ${claseClick}" data-star="${i}"></span>`;
+  }
+  return html;
+}
+
+async function cargarCalificacionProducto(productoId) {
+  const contProm = document.getElementById('rating-promedio');
+  const userRatingArea = document.getElementById('user-rating-area');
+  if (!contProm || !userRatingArea) return;
+
+  try {
+    const resp = await llamarApi(`/public/productos/${productoId}/calificacion`, { method: 'GET' });
+    let promedio = 0, total = 0, miCalificacion = null;
+
+    if (resp.ok && resp.datos) {
+      promedio = resp.datos.promedio ? Number(resp.datos.promedio) : 0;
+      total = resp.datos.total ? Number(resp.datos.total) : 0;
+      miCalificacion = resp.datos.miCalificacion ? Number(resp.datos.miCalificacion) : null;
+    } else {
+      console.warn('No se pudo cargar calificación:', resp.mensaje);
+    }
+
+    document.getElementById('estrellas-promedio').innerHTML = renderEstrellas(5, Math.round(promedio));
+    document.getElementById('rating-numero').textContent = promedio.toFixed(1);
+    document.getElementById('rating-total').textContent = `(${total} votos)`;
+
+    const estaLogueado = !!estadoApp.usuarioActual;
+    let userHTML = '';
+
+    if (!estaLogueado) {
+      userHTML = '<p class="text-xs text-slate-400 mt-2">Inicia sesión para calificar</p>';
+    } else if (miCalificacion !== null && miCalificacion > 0) {
+      userHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-medium text-slate-600">Tu calificación:</span>
+          <div class="stars-container" id="mis-estrellas">${renderEstrellas(5, miCalificacion, false)}</div>
+          <button id="btn-editar-calificacion" class="text-xs text-chapinAzul underline hover:text-chapinNaranja">Editar</button>
+        </div>
+      `;
+    } else {
+      userHTML = `
+        <button id="btn-calificar-producto" class="bg-chapinAzul text-white text-xs px-4 py-2 rounded-full hover:bg-chapinAzulClaro transition">
+          Calificar producto
+        </button>
+        <div id="form-calificar-inline" class="hidden mt-2 flex items-center gap-2">
+          <span class="text-sm font-medium">Tu calificación:</span>
+          <div class="stars-container" id="estrellas-usuario-interactivas"></div>
+          <button id="btn-cancelar-calificacion" class="text-xs text-red-500 hover:underline ml-2">Cancelar</button>
+        </div>
+      `;
+    }
+
+    userRatingArea.innerHTML = userHTML;
+
+    // Eventos para calificar/editar
+    if (miCalificacion === null && estaLogueado) {
+      const btnCalificar = document.getElementById('btn-calificar-producto');
+      if (btnCalificar) {
+        btnCalificar.addEventListener('click', () => {
+          const formInline = document.getElementById('form-calificar-inline');
+          const estrellasDiv = document.getElementById('estrellas-usuario-interactivas');
+          if (formInline && estrellasDiv) {
+            formInline.classList.remove('hidden');
+            btnCalificar.classList.add('hidden');
+            estrellasDiv.innerHTML = renderEstrellas(5, 0, true);
+            estrellasDiv.querySelectorAll('.star-icon.clickable').forEach(star => {
+              star.addEventListener('click', () => {
+                const val = parseInt(star.getAttribute('data-star'));
+                guardarCalificacion(productoId, val);
+              });
+            });
+          }
+        });
+      }
+      const btnCancelar = document.getElementById('btn-cancelar-calificacion');
+      if (btnCancelar) {
+        btnCancelar.addEventListener('click', () => {
+          document.getElementById('form-calificar-inline').classList.add('hidden');
+          document.getElementById('btn-calificar-producto').classList.remove('hidden');
+        });
+      }
+    }
+
+    if (miCalificacion !== null && miCalificacion > 0 && estaLogueado) {
+      const btnEditar = document.getElementById('btn-editar-calificacion');
+      if (btnEditar) {
+        btnEditar.addEventListener('click', () => {
+          const divEstrellas = document.getElementById('mis-estrellas');
+          if (divEstrellas) {
+            divEstrellas.innerHTML = renderEstrellas(5, miCalificacion, true);
+            divEstrellas.querySelectorAll('.star-icon.clickable').forEach(star => {
+              star.addEventListener('click', () => {
+                const val = parseInt(star.getAttribute('data-star'));
+                guardarCalificacion(productoId, val);
+              });
+            });
+            btnEditar.textContent = 'Cancelar';
+            btnEditar.removeEventListener('click', arguments.callee);
+            btnEditar.addEventListener('click', () => {
+              cargarCalificacionProducto(productoId);
+            });
+          }
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error('Error cargando calificación:', error);
+    document.getElementById('estrellas-promedio').innerHTML = renderEstrellas(5, 0);
+    document.getElementById('rating-numero').textContent = '0.0';
+    document.getElementById('rating-total').textContent = '(0 votos)';
+    userRatingArea.innerHTML = '<p class="text-xs text-red-500">Error al cargar calificación</p>';
+  }
+}
+
+async function guardarCalificacion(productoId, estrellas) {
+  try {
+    const resp = await llamarApi(`/public/productos/${productoId}/calificacion`, {
+      method: 'POST',
+      body: JSON.stringify({ calificacion: estrellas })
+    });
+    if (resp.ok) {
+      await cargarCalificacionProducto(productoId);
+      mostrarModal('Calificación guardada', '<p class="text-sm">Tu calificación ha sido registrada.</p>');
+    } else {
+      mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo guardar la calificación'}</p>`);
+    }
+  } catch (e) {
+    console.error('Error guardando calificación:', e);
+    mostrarModal('Error', '<p class="text-sm text-red-600">Error de conexión al guardar calificación</p>');
+  }
+}
+
+async function cargarResenasProducto(productoId) {
+  const contenedor = document.getElementById('resenas-lista');
+  if (!contenedor) return;
+
+  try {
+    const resp = await llamarApi(`/public/productos/${productoId}/resenas`, { method: 'GET' });
+    if (!resp.ok || !Array.isArray(resp.datos)) {
+      contenedor.innerHTML = '<p class="text-sm text-slate-400">No se pudieron cargar las reseñas.</p>';
+      return;
+    }
+
+    if (resp.datos.length === 0) {
+      contenedor.innerHTML = '<p class="text-sm text-slate-400">No hay reseñas aún. Sé el primero en opinar.</p>';
+    } else {
+      contenedor.innerHTML = resp.datos.map(r => `
+        <div class="resena-item">
+          <div class="resena-header">
+            <span class="font-semibold">${r.usuarioNombre || 'Usuario'}</span>
+            <span>${new Date(r.fecha).toLocaleDateString('es-GT')}</span>
+          </div>
+          <p class="resena-texto">${r.comentario}</p>
+        </div>
+      `).join('');
+    }
+  } catch (error) {
+    console.error('Error cargando reseñas:', error);
+    contenedor.innerHTML = '<p class="text-sm text-red-500">Error al cargar reseñas</p>';
+  }
+}
+
+async function enviarResena(productoId) {
+  const textarea = document.getElementById('resena-comentario');
+  if (!textarea) return;
+  const comentario = textarea.value.trim();
+  if (!comentario) {
+    mostrarModal('Error', '<p class="text-sm text-red-600">Escribe un comentario</p>');
+    return;
+  }
+  if (comentario.length > 500) {
+    mostrarModal('Error', '<p class="text-sm text-red-600">El comentario excede los 500 caracteres</p>');
+    return;
+  }
+
+  try {
+    const resp = await llamarApi(`/public/productos/${productoId}/resenas`, {
+      method: 'POST',
+      body: JSON.stringify({ comentario })
+    });
+    if (resp.ok) {
+      textarea.value = '';
+      await cargarResenasProducto(productoId);
+      mostrarModal('Reseña enviada', '<p class="text-sm">Gracias por tu opinión.</p>');
+    } else {
+      mostrarModal('Error', `<p class="text-sm text-red-600">${resp.mensaje || 'No se pudo enviar la reseña'}</p>`);
+    }
+  } catch (e) {
+    console.error('Error enviando reseña:', e);
+    mostrarModal('Error', '<p class="text-sm text-red-600">Error de conexión al enviar reseña</p>');
   }
 }
 

@@ -1,5 +1,3 @@
-/* styles.css - Versión con portada rediseñada y carrito lateral unificado */
-
 .scrollbar-delgada::-webkit-scrollbar {
     width: 6px;
 }
@@ -9,9 +7,6 @@
     border-radius: 9999px;
 }
 
-/* ========== OVERLAY DE CARGA ========== */
-
-/* ========== NUEVA PANTALLA DE CARGA PROFESIONAL ========== */
 .overlay-carga {
     position: fixed;
     inset: 0;
@@ -30,7 +25,6 @@
     pointer-events: none;
 }
 
-/* Contenedor centralizado */
 .loading-container {
     display: flex;
     flex-direction: column;
@@ -42,18 +36,24 @@
     -webkit-backdrop-filter: blur(12px);
     border-radius: 24px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1),
-                0 0 0 1px rgba(255, 255, 255, 0.8);
+        0 0 0 1px rgba(255, 255, 255, 0.8);
     max-width: 360px;
     width: 90vw;
     animation: fadeInLoading 0.4s ease;
 }
 
 @keyframes fadeInLoading {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* GIF principal */
 .loading-gif-wrapper {
     display: flex;
     justify-content: center;
@@ -75,7 +75,6 @@
     pointer-events: none;
 }
 
-/* Barra de progreso */
 .progress-wrapper {
     width: 100%;
     display: flex;
@@ -89,7 +88,7 @@
     background: rgba(0, 0, 0, 0.08);
     border-radius: 999px;
     overflow: hidden;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .progress-fill {
@@ -116,17 +115,18 @@
         padding: 24px 20px;
         gap: 20px;
     }
+
     .loading-gif-wrapper {
         width: 130px;
         height: 130px;
     }
+
     .loading-gif {
         width: 110px;
         height: 110px;
     }
 }
 
-/* ========== HERO PORTADA REDISEÑADA ========== */
 .hero-wrapper {
     position: relative;
     isolation: isolate;
@@ -185,7 +185,6 @@
         transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Máscara de transparencia para la imagen: izquierda transparente → derecha opaca */
 .hero-image-wrapper {
     position: relative;
 }
@@ -200,7 +199,6 @@
     pointer-events: none;
 }
 
-/* Icono grande del slide */
 .hero-icon-grande {
     animation: flotarIcono 4s ease-in-out infinite;
     flex-shrink: 0;
@@ -245,13 +243,11 @@
     }
 }
 
-/* Dots de navegación */
 .hero-dot {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
 }
 
-/* Badges informativos */
 .info-badge {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
@@ -285,13 +281,9 @@
     }
 }
 
-/* ================= HERO BADGES CORREGIDO ================= */
-
-/* Base (TODOS LOS TAMAÑOS) */
 .hero-badges-container {
     position: absolute;
     bottom: 20px;
-    /* 🔥 Control real de posición */
     left: 0;
     right: 0;
     z-index: 20;
@@ -303,9 +295,6 @@
     justify-content: center;
 }
 
-/* ================= ALTURA DEL HERO ================= */
-
-/* 📱 MÓVIL: Mayor altura para evitar compresión */
 @media (max-width: 768px) {
     .hero-container {
         min-height: 400px !important;
@@ -313,33 +302,26 @@
     }
 }
 
-/* 📲 TABLET: altura intermedia */
 @media (min-width: 769px) and (max-width: 1024px) {
     .hero-container {
         min-height: 520px;
     }
 }
 
-/* 💻 DESKTOP: altura estándar */
 @media (min-width: 1025px) {
     .hero-container {
         min-height: 520px;
     }
 }
 
-/* ================= BREAKPOINTS CLAROS ================= */
-
-/* 📱 MÓVIL */
 @media (max-width: 768px) {
     .hero-badges-container {
         bottom: 40px;
-        /* 🔥 Más arriba en móvil */
         justify-content: center;
     }
 
     .hero-container {
         min-height: 750px;
-        /* 🔥 Mucho más espacio real */
     }
 
     .hero-badges-container .info-badge {
@@ -357,14 +339,12 @@
         height: 200px !important;
     }
 
-    /* Ícono a la izquierda del título en móvil */
     .hero-slide .flex-1.z-10.flex {
         flex-direction: row !important;
         align-items: center !important;
         gap: 0.75rem !important;
     }
 
-    /* El ícono debe ir primero (a la izquierda del título) */
     .hero-slide .hero-icon-grande {
         width: 2.5rem !important;
         height: 2.5rem !important;
@@ -379,7 +359,6 @@
     }
 }
 
-/* 📲 TABLET: Elementos informativos ligeramente más arriba, centrados */
 @media (min-width: 769px) and (max-width: 1024px) {
     .hero-badges-container {
         bottom: 30px;
@@ -387,7 +366,6 @@
     }
 }
 
-/* 💻 DESKTOP: Elementos informativos ligeramente más arriba, alineados a la derecha */
 @media (min-width: 1025px) {
     .hero-badges-container {
         bottom: 30px;
@@ -395,7 +373,6 @@
     }
 }
 
-/* ========== CARRITO LATERAL ========== */
 .panel-carrito-lateral {
     display: flex;
     flex-direction: column;
@@ -480,7 +457,6 @@
     font-size: 0.75rem;
 }
 
-/* Botón flotante del carrito */
 .boton-flotante-carrito {
     animation: pulse-carrito 2s infinite;
     transition: transform 0.2s;
@@ -508,7 +484,6 @@
     }
 }
 
-/* ========== SECCIÓN COMPRA CON CONFIANZA ========== */
 .confianza-container {
     background: linear-gradient(to bottom, #ffffff, #f8fafc);
     border-top: 2px solid #e2e8f0;
@@ -585,7 +560,6 @@
     line-height: 1.3;
 }
 
-/* ========== RESPONSIVE CARRITO ========== */
 @media (max-width: 1023px) {
     .panel-carrito-lateral {
         width: 340px;
@@ -600,7 +574,6 @@
     }
 }
 
-/* Reducir padding interno del panel para eliminar espacios innecesarios */
 .panel-carrito-lateral .flex-shrink-0:first-child {
     padding-left: 12px;
     padding-right: 12px;
@@ -620,10 +593,8 @@
     padding: 12px 12px 16px 12px;
 }
 
-/* ========== DROPDOWN CATEGORÍAS (CLICK) ========== */
 #dropdown-categorias.dropdown-abierto {
     display: grid;
-    /* Asegura que sea grid */
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
@@ -633,35 +604,28 @@
     pointer-events: none;
 }
 
-/* Flecha rotada */
 .rotate-arrow {
     transform: rotate(180deg);
 }
 
-/* ========== PANEL MENÚ MÓVIL ========== */
 #panel-menu-movil.menu-abierto {
     transform: translateX(0);
 }
 
-/* Ajuste responsive para que el panel no tape contenido en pantallas grandes */
 @media (min-width: 768px) {
     #panel-menu-movil {
         display: none !important;
     }
 }
 
-/* ========== HEADER CON SCROLL INTELIGENTE ========== */
 #header-principal.header-oculto {
     transform: translateY(-100%);
 }
 
-/* Ajuste para cuando el header está fixed, aseguramos que no tape contenido */
 body {
     padding-top: 0;
-    /* se ajusta dinámicamente con JS */
 }
 
-/* ========== FOOTER ESTILOS ========== */
 .social-icon {
     transition: transform 0.3s ease, filter 0.3s ease, background 0.3s ease;
     display: inline-flex;
@@ -681,7 +645,6 @@ body {
     filter: brightness(1.2);
 }
 
-/* Enlaces con subrayado animado */
 .footer-link {
     position: relative;
     display: inline-block;
@@ -710,7 +673,6 @@ body {
     width: 100%;
 }
 
-/* ========== PERFIL TABS MEJORADOS ========== */
 .perfil-tab-activo {
     background-color: #003366 !important;
     color: #ffffff !important;
@@ -739,7 +701,6 @@ body {
     }
 }
 
-/* ---------- Iconos de reemplazo ---------- */
 .icono-img {
     width: 1.2em;
     height: 1.2em;
@@ -764,7 +725,6 @@ body {
     object-fit: contain;
 }
 
-/* ========== PROMO CARDS ========== */
 .promo-card {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -773,7 +733,6 @@ body {
     box-shadow: 0 12px 30px rgba(0, 51, 102, 0.12);
 }
 
-/* Gradiente de botón y animación de carga */
 #btn-procesar-pago:disabled {
     opacity: 0.7;
     cursor: not-allowed;
@@ -783,7 +742,6 @@ body {
     vertical-align: middle;
 }
 
-/* ========== BOTÓN NUEVA TARJETA (centrado perfecto) ========== */
 .plus-nueva-tarjeta {
     display: flex;
     align-items: center;
@@ -799,7 +757,6 @@ body {
     padding-bottom: 0.15em;
 }
 
-/* ========== LEYENDA "SELECCIONADA" (visible solo en la dirección activa) ========== */
 .opcion-direccion-checkout .seleccionada-leyenda {
     display: none;
 }
@@ -808,7 +765,6 @@ body {
     display: inline;
 }
 
-/* Forzar altura igual entre columnas izquierda y derecha */
 #vista-principal>section {
     height: 100%;
     align-items: stretch;
@@ -820,23 +776,20 @@ body {
     height: 100%;
 }
 
-/* Evitar apilamiento en móviles (siempre lado a lado) */
 @media (max-width: 640px) {
     .grid-cols-\[180px\2c 1fr\] {
         grid-template-columns: 160px 1fr !important;
     }
 }
 
-/* ========== REDISEÑO TARJETAS DE PRODUCTO ========== */
 .product-card {
+    position: relative;
     background: #fff;
     border-radius: 16px;
     overflow: visible;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-    transition: box-shadow 0.25s ease;
     display: flex;
     flex-direction: column;
-    position: relative;
 }
 
 .product-card-inner {
@@ -854,9 +807,9 @@ body {
     position: relative;
     width: 100%;
     padding-top: 100%;
-    /* 1:1 */
     background: #f8fafc;
     overflow: hidden;
+    transform: none;
 }
 
 .product-card-image-wrapper img {
@@ -886,23 +839,19 @@ body {
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 0 3px rgba(255, 255, 255, 0.5);
-    z-index: 5;
+    z-index: 10;
     padding: 0;
     border: none;
     overflow: hidden;
-    clip-path: circle(50%);
-    isolation: isolate;
-    /* ¡SIN transiciones para evitar arrastres! */
-    transition: none;
+    transform: none !important;
+    transition: none !important;
+    will-change: auto;
 }
 
 .product-card-fav:hover {
-    /* Ya no hay scale -> el botón NO cambia de tamaño ni posición */
     transform: none !important;
-    background: #fff;
-    /* Un resalte elegante y estático */
+    background: rgba(255, 255, 255, 1);
     box-shadow: 0 0 0 4px rgba(255, 140, 50, 0.45), 0 4px 12px rgba(0, 0, 0, 0.2);
-    transition: none;
 }
 
 .product-card-fav img {
@@ -911,17 +860,16 @@ body {
     left: 50%;
     width: 18px;
     height: 18px;
-    transform: translate(-50%, -50%);
     object-fit: contain;
     pointer-events: none;
-    /* Sin cambios al hacer hover sobre el botón */
-    transition: none;
+    transform: translate(-50%, -50%) !important;  /* Centrado fijo */
+    transition: none !important;
     backface-visibility: hidden;
+    image-rendering: auto;
 }
 
 .product-card-fav:active img {
-    transform: translate(-50%, -50%) scale(1.2);
-    transition: none;
+    transform: translate(-50%, -50%) !important;
 }
 
 .product-card-body {
@@ -995,7 +943,6 @@ body {
     cursor: not-allowed;
 }
 
-/* ========== FILTROS REDISEÑADOS ========== */
 .filtro-section {
     background: white;
     border-radius: 16px;
@@ -1057,4 +1004,193 @@ body {
 .filtro-btn-limpiar:hover {
     background: #003366;
     color: white;
+}
+
+.producto-detalle {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .producto-detalle {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.producto-imagenes {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.imagen-principal-wrapper {
+    position: relative;
+    width: 100%;
+    padding-top: 100%;
+    background: #f8fafc;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.imagen-principal-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.miniaturas {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+}
+
+.miniatura-btn {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 2px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border 0.2s;
+}
+
+.miniatura-btn.activa {
+    border-color: #ff8c32;
+}
+
+.miniatura-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.rating-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.5rem 0;
+}
+
+.stars-container {
+    display: flex;
+    gap: 2px;
+}
+
+.star-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    background-image: url('https://cdn-icons-png.flaticon.com/512/1828/1828884.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    transition: filter 0.2s;
+    filter: none;
+}
+
+.star-icon.grayscale {
+    filter: grayscale(1) brightness(0.7);
+}
+
+.star-icon.clickable {
+    cursor: pointer;
+}
+
+.star-icon.clickable:hover {
+    transform: scale(1.1);
+}
+
+.rating-numero {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #003366;
+}
+
+.rating-total {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.resenas-section {
+    margin-top: 2rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1.5rem;
+}
+
+.resena-item {
+    background: #f8fafc;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.resena-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.resena-texto {
+    font-size: 0.9rem;
+    color: #1e293b;
+    white-space: pre-wrap;
+}
+
+.textarea-resena {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 100px;
+}
+
+.boton-resena {
+    background: #003366;
+    color: white;
+    border: none;
+    border-radius: 999px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.boton-resena:hover {
+    background: #005fa3;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+.rating-section-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.user-rating-area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2rem;
+}
+
+.custom-select {
+    position: relative;
+}
+
+.custom-select-options {
+    max-height: 180px;
+    overflow-y: auto;
 }

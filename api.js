@@ -1,5 +1,3 @@
-// api.js — Módulo de comunicación con el backend ChapínMarket
-
 const BASE_URL = 'http://localhost/chapinmarket-backend';
 
 function emitirEventoCarga(activo) {
@@ -19,10 +17,10 @@ function emitirEventoCarga(activo) {
  *
  * @param {string} endpoint - Ruta relativa, ej: '/public/perfil' o '/perfil/tarjetas'
  * @param {object} opciones - Opciones de fetch (method, body, headers…)
+ * @param {boolean} silenciarErrores - Si es true, no se loguea en consola cuando falla (ej: /auth/me al inicio)
  * @returns {Promise<{ok: boolean, datos: any, mensaje: string}>}
  */
-export async function llamarApi(endpoint, opciones = {}) {
-  // Normalizar ruta: asegurarse de que siempre lleve /public/
+export async function llamarApi(endpoint, opciones = {}, silenciarErrores = false) {
   let ruta = endpoint;
   if (!ruta.startsWith('/public') && !ruta.startsWith('http')) {
     ruta = '/public' + ruta;
@@ -39,37 +37,39 @@ export async function llamarApi(endpoint, opciones = {}) {
         'Content-Type': 'application/json',
         ...(opciones.headers || {})
       },
-      credentials: 'include', // ✅ La cookie de sesión PHP viaja en cada petición
+      credentials: 'include',
     };
 
-    // Solo adjuntar body en métodos que lo admiten
     if (opciones.body && ['POST', 'PUT', 'DELETE'].includes((opciones.method || 'GET').toUpperCase())) {
       fetchOptions.body = opciones.body;
     }
 
     const response = await fetch(url, fetchOptions);
 
-    // Parsear JSON de forma segura
     const data = await response.json().catch(() => ({}));
 
     emitirEventoCarga(false);
 
-    // ─────────────────────────────────────────────────────────────────────
-    // TRADUCCIÓN DE FORMATOS:
-    //   Backend (Response.php) → { success, data, message, errors, meta }
-    //   Frontend (app.js)      → { ok,      datos, mensaje }
-    // ─────────────────────────────────────────────────────────────────────
     const exito = response.ok && (data.success === true || data.ok === true);
-    const datos = data.data !== undefined ? data.data    // formato backend estándar
-      : data.datos !== undefined ? data.datos   // formato alternativo
-        : data;                                     // fallback: respuesta completa
+    const datos = data.data !== undefined ? data.data 
+      : data.datos !== undefined ? data.datos 
+        : data;  
     const mensaje = data.message || data.mensaje || '';
+
+    if (!exito && !silenciarErrores) {
+      const esAuthMeNoAutenticado = ruta.includes('/auth/me') && response.status === 401;
+      if (!esAuthMeNoAutenticado) {
+        console.error(`[API] ${response.status} en ${url}:`, mensaje || data);
+      }
+    }
 
     return { ok: exito, datos, mensaje };
 
   } catch (error) {
     emitirEventoCarga(false);
-    console.error(`[API] Error al llamar ${url}:`, error);
+    if (!silenciarErrores) {
+      console.error(`[API] Error al llamar ${url}:`, error);
+    }
     return { ok: false, datos: null, mensaje: 'No se pudo conectar con el servidor' };
   }
 }
