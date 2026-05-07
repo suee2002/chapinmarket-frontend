@@ -1509,7 +1509,7 @@ function vistaPromociones() {
 
   return `
     <section class="space-y-4 text-sm">
-      <h1 class="text-xl font-bold text-chapinAzulDark">Promociones Activas</h1>
+      <h1 class="text-xl font-bold text-chapinAzulDark">Temporadas Activas!</h1>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         ${tarjetasHTML}
       </div>
@@ -1751,7 +1751,7 @@ function vistaCheckout() {
   const formularioInvitadoHTML = `
     <div class="space-y-4">
       <div class="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-chapinAzul">
-        Puedes comprar como invitado. Usaremos tus datos solo para coordinar la entrega y enviarte la confirmaciÃ³n del pedido.
+        Puedes comprar como invitado. Usaremos tus datos solo para coordinar la entrega y enviarte la confirmación del pedido.
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="sm:col-span-2">
@@ -1760,17 +1760,17 @@ function vistaCheckout() {
                  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Correo electrÃ³nico</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Correo electrónico</label>
           <input id="guest-correo" type="email" placeholder="correo@ejemplo.com"
                  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">TelÃ©fono</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Teléfono</label>
           <input id="guest-telefono" type="tel" placeholder="+502 0000 0000"
                  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
         </div>
         <div class="sm:col-span-2">
-          <label class="block text-xs font-medium text-slate-600 mb-1">DirecciÃ³n de entrega</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Dirección de entrega</label>
           <input id="guest-linea1" type="text" placeholder="Calle, avenida, casa, referencia"
                  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
         </div>
@@ -1785,7 +1785,7 @@ function vistaCheckout() {
                  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">CÃ³digo postal</label>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Código postal</label>
           <input id="guest-codigo-postal" type="text" placeholder="Opcional"
                  class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
         </div>
@@ -2008,7 +2008,7 @@ function configurarEventosVistaCheckout() {
           setTimeout(() => {
             cerrarModal();
             window.location.reload();
-          }, 1500);
+          }, 4500);
         }, 150);
       } else {
         botonesPago.forEach(b => {
