@@ -1123,6 +1123,7 @@ function gridProductos(listaProductos, opciones = {}) {
   const mostrarPaginacion = !!opciones.mostrarPaginacion;
   let pagina = opciones.pagina || 1;
   const porPagina = opciones.porPagina || 12;
+  const textoBotonCarrito = opciones.textoBotonCarrito || 'Agregar al carrito';
 
   let productosPagina = listaProductos;
   let totalPaginas = 1;
@@ -1189,7 +1190,7 @@ function gridProductos(listaProductos, opciones = {}) {
                 <div class="product-card-btn product-card-btn-agotado">Agotado</div>
               ` : `
                 <button data-agregar-carrito="${p.id}" class="product-card-btn product-card-btn-add">
-                  Agregar al carrito
+                  ${textoBotonCarrito}
                 </button>
               `}
             </div>
@@ -1499,7 +1500,7 @@ function vistaPromociones() {
             </svg>
           </button>
           <div id="promo-products-${idx}" class="hidden mt-3">
-            ${gridProductos(productosTemporada.slice(0, 8))}
+            ${gridProductos(productosTemporada.slice(0, 8), { textoBotonCarrito: '🛒' })}
           </div>
           ` : '<p class="text-xs text-slate-400 mt-2">Próximamente productos en oferta.</p>'}
         </div>
@@ -1647,7 +1648,7 @@ function vistaCarritoCompleto() {
     <div class="space-y-4">
       <h1 class="text-xl font-bold">Mi Carrito</h1>
       <div class="bg-blue-50 border border-blue-100 text-chapinAzul rounded-xl p-3 text-xs sm:text-sm">
-        Solo los productos seleccionados pasarÃ¡n al pedido. Los productos sin marcar quedarÃ¡n guardados en tu carrito durante esta sesiÃ³n.
+        Solo los productos seleccionados pasarÃ¡n al pedido. Los productos sin marcar quedarÃ¡n guardados en tu carrito durante esta sesión.
       </div>
       
       <div class="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -2028,7 +2029,7 @@ function configurarEventosVistaCheckout() {
 
         setTimeout(() => {
           const mensajePendientes = pendientesDespuesDePagar > 0
-            ? `<p class="text-sm mt-2 text-slate-600">Dejamos ${pendientesDespuesDePagar} producto(s) pendiente(s) en tu carrito para esta sesiÃ³n.</p>`
+            ? `<p class="text-sm mt-2 text-slate-600">Dejamos ${pendientesDespuesDePagar} producto(s) pendiente(s) en tu carrito para esta sesión.</p>`
             : '';
           mostrarModal(
             'Pedido confirmado con exito',
@@ -2039,7 +2040,7 @@ function configurarEventosVistaCheckout() {
           setTimeout(() => {
             cerrarModal();
           }, 14500);
-        }, 10500);
+        }, 150);
       } else {
         botonesPago.forEach(b => {
           b.disabled = false;
