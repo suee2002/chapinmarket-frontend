@@ -243,8 +243,8 @@ async function cargarDatosIniciales() {
         precio: p.PRECIO !== undefined ? Number(p.PRECIO) : (p.precio !== undefined ? Number(p.precio) : 0),
         stock: p.STOCK !== undefined ? Number(p.STOCK) : (p.stock !== undefined ? Number(p.stock) : 0),
         imagenes: imagenesArray,
-        categoriaIds: p.CATEGORIAIDS || p.categoriaIds || [],
-        temporadaIds: p.TEMPORADAIDS || p.temporadaIds || []
+        categoriaIds: normalizarListaIds(p.CATEGORIAIDS || p.categoriaIds || []),
+        temporadaIds: normalizarListaIds(p.TEMPORADAIDS || p.temporadaIds || [])
       };
     });
 
@@ -282,6 +282,26 @@ async function cargarDatosIniciales() {
     construirMegaMenu();
     mostrarModal('Error crítico', '<p>Ocurrió un error inesperado al cargar los datos. Revisa la consola para más detalles.</p>');
   }
+}
+
+function normalizarListaIds(valor) {
+  if (Array.isArray(valor)) {
+    return valor.map(Number).filter(Number.isFinite);
+  }
+
+  if (typeof valor === 'string') {
+    return valor
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter(Number.isFinite);
+  }
+
+  if (valor !== null && valor !== undefined && valor !== '') {
+    const id = Number(valor);
+    return Number.isFinite(id) ? [id] : [];
+  }
+
+  return [];
 }
 
 async function cargarFavoritos() {
@@ -711,20 +731,12 @@ function vistaCategoria(idCategoria) {
   if (!cat) return `<p class="text-sm text-red-500">Categoría no encontrada.</p>`;
 
   // Si es una subcategoría, usamos la categoría padre para mostrar los productos.
-  const idReal = cat.padreId !== null && cat.padreId !== undefined ? cat.padreId : idCategoria;
-  const idsDescendientes = obtenerDescendientesCategoria(idReal);
+  const idsCategoria = obtenerIdsParaFiltroCategoria(idCategoria);
 
   // También incluir la subcategoría seleccionada si es distinta (por si hubiera productos asignados directamente)
-  if (idReal !== idCategoria) {
-    idsDescendientes.push(idCategoria);
-  }
-
   const productosFiltrados = estadoApp.productos.filter(p =>
-    p.categoriaIds && p.categoriaIds.some(cid => idsDescendientes.includes(cid))
+    p.categoriaIds && p.categoriaIds.some(cid => idsCategoria.includes(Number(cid)))
   );
-
-  // Resetear paginación al cambiar de categoría/subcategoría
-  estadoApp.filtrosProductos.pagina = 1;
 
   return `
     <section class="space-y-4">
@@ -827,7 +839,50 @@ function construirMenuMovilCategorias() {
 }
 
 function obtenerHijosCategoria(idPadre) {
-  return estadoApp.categorias.filter((c) => c.padreId === idPadre);
+  return estadoApp.categorias
+    .filter((c) => c.padreId === idPadre)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+function obtenerCategoriasRaiz() {
+  return estadoApp.categorias
+    .filter((c) => c.padreId === null || c.padreId === undefined)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+function obtenerIdsParaFiltroCategoria(categoriaId) {
+  const cat = estadoApp.categorias.find(c => Number(c.id) === Number(categoriaId));
+  if (!cat) return [];
+
+  if (cat.padreId !== null && cat.padreId !== undefined) {
+    return [Number(cat.id)];
+  }
+
+  return obtenerDescendientesCategoria(Number(cat.id));
+}
+
+function opcionesCategoriasFiltroHTML(categoriaSeleccionada) {
+  const categoriasIncluidas = new Set();
+  let html = '<option value="">Todas</option>';
+
+  obtenerCategoriasRaiz().forEach((cat) => {
+    categoriasIncluidas.add(cat.id);
+    html += `<option value="${cat.id}" ${categoriaSeleccionada === cat.id ? 'selected' : ''}>${cat.nombre}</option>`;
+
+    obtenerHijosCategoria(cat.id).forEach((hijo) => {
+      categoriasIncluidas.add(hijo.id);
+      html += `<option value="${hijo.id}" ${categoriaSeleccionada === hijo.id ? 'selected' : ''}>&nbsp;&nbsp;- ${hijo.nombre}</option>`;
+    });
+  });
+
+  estadoApp.categorias
+    .filter((cat) => !categoriasIncluidas.has(cat.id))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    .forEach((cat) => {
+      html += `<option value="${cat.id}" ${categoriaSeleccionada === cat.id ? 'selected' : ''}>${cat.nombre}</option>`;
+    });
+
+  return html;
 }
 
 function vistaHome() {
@@ -3802,6 +3857,8 @@ function vistaTodasCategorias() {
   const precioMin = filtros.precioMin !== null ? filtros.precioMin : '';
   const precioMax = filtros.precioMax !== null ? filtros.precioMax : '';
   const estadoSeleccionado = filtros.estado || 'todos';
+  const categoriaSeleccionada = filtros.categoriaId !== null ? Number(filtros.categoriaId) : '';
+  const temporadaSeleccionada = filtros.temporadaId !== null ? Number(filtros.temporadaId) : '';
 
   let productosFiltrados = filtrarProductos(estadoApp.productos);
 
@@ -3820,6 +3877,23 @@ function vistaTodasCategorias() {
           <h3>Filtrar productos</h3>
 
           <div class="filtro-group">
+            <label class="filtro-label">Categoría o subcategoría</label>
+            <select id="filtro-categoria" class="filtro-select filtro-select-arbol">
+              ${opcionesCategoriasFiltroHTML(categoriaSeleccionada)}
+            </select>
+          </div>
+
+          <div class="filtro-group">
+            <label class="filtro-label">Temporada / promoción</label>
+            <select id="filtro-temporada" class="filtro-select filtro-select-arbol">
+              <option value="">Todas</option>
+              ${estadoApp.temporadas.map((t) => `
+                <option value="${t.id}" ${temporadaSeleccionada === t.id ? 'selected' : ''}>${t.nombre}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="filtro-group">
             <label class="filtro-label">Rango de precio (Q)</label>
             <div class="flex gap-2">
               <input type="number" id="filtro-precio-min" placeholder="Mínimo" value="${precioMin}"
@@ -3827,6 +3901,9 @@ function vistaTodasCategorias() {
               <input type="number" id="filtro-precio-max" placeholder="Máximo" value="${precioMax}"
                      class="filtro-input flex-1" step="0.01" min="0">
             </div>
+            <button id="btn-filtrar-precios" class="filtro-btn-precios mt-2">
+              Filtrar precios
+            </button>
           </div>
 
           <div class="filtro-group">
@@ -3863,6 +3940,21 @@ function vistaTodasCategorias() {
 function filtrarProductos(productos) {
   const filtros = estadoApp.filtrosProductos;
   let resultado = [...productos];
+
+  if (filtros.categoriaId !== null && !isNaN(filtros.categoriaId)) {
+    const categoriaId = Number(filtros.categoriaId);
+    const idsCategoria = obtenerIdsParaFiltroCategoria(categoriaId);
+    resultado = resultado.filter(p =>
+      Array.isArray(p.categoriaIds) && p.categoriaIds.some(cid => idsCategoria.includes(Number(cid)))
+    );
+  }
+
+  if (filtros.temporadaId !== null && !isNaN(filtros.temporadaId)) {
+    const temporadaId = Number(filtros.temporadaId);
+    resultado = resultado.filter(p =>
+      Array.isArray(p.temporadaIds) && p.temporadaIds.some(tid => Number(tid) === temporadaId)
+    );
+  }
 
   if (filtros.precioMin !== null && !isNaN(filtros.precioMin) && filtros.precioMin > 0) {
     resultado = resultado.filter(p => (p.precio || 0) >= filtros.precioMin);
@@ -3912,9 +4004,14 @@ function configurarEventosVistaTodasCategorias() {
   const inputMin = document.getElementById('filtro-precio-min');
   const inputMax = document.getElementById('filtro-precio-max');
   const selectEstado = document.getElementById('filtro-estado');
+  const selectCategoria = document.getElementById('filtro-categoria');
+  const selectTemporada = document.getElementById('filtro-temporada');
+  const btnFiltrarPrecios = document.getElementById('btn-filtrar-precios');
   const btnLimpiar = document.getElementById('btn-limpiar-filtros');
 
   const aplicarFiltros = () => {
+    estadoApp.filtrosProductos.categoriaId = selectCategoria && selectCategoria.value !== '' ? parseInt(selectCategoria.value) : null;
+    estadoApp.filtrosProductos.temporadaId = selectTemporada && selectTemporada.value !== '' ? parseInt(selectTemporada.value) : null;
     estadoApp.filtrosProductos.precioMin = inputMin.value !== '' ? parseFloat(inputMin.value) : null;
     estadoApp.filtrosProductos.precioMax = inputMax.value !== '' ? parseFloat(inputMax.value) : null;
     estadoApp.filtrosProductos.estado = selectEstado.value;
@@ -3923,14 +4020,23 @@ function configurarEventosVistaTodasCategorias() {
   };
 
   const limpiarFiltros = () => {
+    if (selectCategoria) selectCategoria.value = '';
+    if (selectTemporada) selectTemporada.value = '';
     inputMin.value = '';
     inputMax.value = '';
     selectEstado.value = 'todos';
     aplicarFiltros();
   };
 
-  if (inputMin) inputMin.addEventListener('input', aplicarFiltros);
-  if (inputMax) inputMax.addEventListener('input', aplicarFiltros);
+  if (selectCategoria) selectCategoria.addEventListener('change', aplicarFiltros);
+  if (selectTemporada) selectTemporada.addEventListener('change', aplicarFiltros);
+  if (btnFiltrarPrecios) btnFiltrarPrecios.addEventListener('click', aplicarFiltros);
+  if (inputMin) inputMin.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') aplicarFiltros();
+  });
+  if (inputMax) inputMax.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') aplicarFiltros();
+  });
   if (selectEstado) selectEstado.addEventListener('change', aplicarFiltros);
   if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
 

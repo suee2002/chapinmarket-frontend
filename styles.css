@@ -982,11 +982,64 @@ body {
     transition: border 0.2s, box-shadow 0.2s;
 }
 
+.filtro-select {
+    appearance: none;
+    -webkit-appearance: none;
+    color: #0f172a;
+    font-family: inherit;
+    font-weight: 600;
+    line-height: 1.35;
+    cursor: pointer;
+    background-color: #ffffff;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #003366 50%),
+        linear-gradient(135deg, #003366 50%, transparent 50%),
+        linear-gradient(to right, #e2e8f0, #e2e8f0);
+    background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px),
+        calc(100% - 40px) 50%;
+    background-size: 6px 6px, 6px 6px, 1px 24px;
+    background-repeat: no-repeat;
+    padding-right: 48px;
+}
+
+.filtro-select:hover {
+    border-color: #003366;
+    box-shadow: 0 8px 18px rgba(0, 51, 102, 0.08);
+}
+
+.filtro-select-arbol option {
+    color: #0f172a;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: #ffffff;
+}
+
 .filtro-input:focus,
 .filtro-select:focus {
     outline: none;
     border-color: #ff8c32;
     box-shadow: 0 0 0 3px rgba(255, 140, 50, 0.15);
+}
+
+.filtro-btn-precios {
+    width: 100%;
+    padding: 10px;
+    border-radius: 999px;
+    border: 1px solid #003366;
+    background: #003366;
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filtro-btn-precios:hover {
+    background: white;
+    color: #003366;
+    box-shadow: 0 8px 18px rgba(0, 51, 102, 0.12);
 }
 
 .filtro-btn-limpiar {
