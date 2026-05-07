@@ -1588,7 +1588,6 @@ function vistaCarritoCompleto() {
 
       return `
                 <div class="flex gap-3 bg-white rounded-lg p-3 shadow-sm border border-slate-100" data-producto-id="${item.productoId}">
-                    <input type="checkbox" data-carrito-seleccion="${item.productoId}" class="mt-4 w-4 h-4" ${item.seleccionado ? 'checked' : ''} />
                     <div class="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center">
                         ${tieneImagenValida ?
           `<img src="${imagenUrl}" alt="${producto.nombre}" class="w-full h-full object-cover" 
@@ -1602,6 +1601,20 @@ function vistaCarritoCompleto() {
                         </button>
                         <div class="text-chapinAzul font-bold my-1">Q${producto.precio.toFixed(2)}</div>
                         ${estaAgotado ? productoAgotadoHTML('my-1') : `<p class="text-xs text-slate-500">Stock disponible: ${stockDisponible}</p>`}
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <button type="button"
+                                    data-carrito-seleccion-boton="${item.productoId}"
+                                    data-seleccion="1"
+                                    class="px-3 py-1 rounded-full text-xs font-semibold border transition ${item.seleccionado ? 'bg-chapinAzul text-white border-chapinAzul' : 'bg-white text-chapinAzul border-chapinAzul hover:bg-blue-50'}">
+                                Comprar ahora
+                            </button>
+                            <button type="button"
+                                    data-carrito-seleccion-boton="${item.productoId}"
+                                    data-seleccion="0"
+                                    class="px-3 py-1 rounded-full text-xs font-semibold border transition ${!item.seleccionado ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}">
+                                Comprar después
+                            </button>
+                        </div>
                         <div class="flex items-center gap-2 mt-2">
                             <button data-carrito-decrementar="${item.productoId}" 
                                     class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-chapinAzul hover:text-white transition flex items-center justify-center"
@@ -1627,14 +1640,18 @@ function vistaCarritoCompleto() {
 
   const envio = 25;
   const totalSeleccionadosConEnvio = subtotalSeleccionados + (subtotalSeleccionados > 0 ? envio : 0);
+  const itemsSeleccionados = estadoApp.carrito.filter(item => item.seleccionado).length;
+  const itemsPendientes = Math.max(0, itemsValidos - itemsSeleccionados);
 
   return `
     <div class="space-y-4">
       <h1 class="text-xl font-bold">Mi Carrito</h1>
+      <div class="bg-blue-50 border border-blue-100 text-chapinAzul rounded-xl p-3 text-xs sm:text-sm">
+        Solo los productos seleccionados pasarÃ¡n al pedido. Los productos sin marcar quedarÃ¡n guardados en tu carrito durante esta sesiÃ³n.
+      </div>
       
       <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="hidden md:grid grid-cols-[40px,80px,1fr,auto] gap-3 p-3 bg-chapinAzul text-white text-xs font-medium">
-          <div></div>
+        <div class="hidden md:grid grid-cols-[80px,1fr,auto] gap-3 p-3 bg-chapinAzul text-white text-xs font-medium">
           <div>Producto</div>
           <div>Descripción</div>
           <div>Subtotal</div>
@@ -1647,7 +1664,15 @@ function vistaCarritoCompleto() {
       
       <div class="bg-white rounded-lg shadow-sm p-4 space-y-3">
         <div class="flex justify-between text-sm">
-          <span>Subtotal (${itemsValidos} productos):</span>
+          <span>Productos seleccionados:</span>
+          <span class="font-semibold">${itemsSeleccionados}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span>Productos pendientes:</span>
+          <span class="font-semibold text-slate-500">${itemsPendientes}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span>Total en carrito:</span>
           <span id="total-productos" class="font-semibold">${itemsValidos}</span>
         </div>
         <div class="flex justify-between text-sm">
@@ -1992,24 +2017,29 @@ function configurarEventosVistaCheckout() {
       cerrarModal();
 
       if (resp.ok) {
+        const pendientesAntesDePagar = estadoApp.carrito.filter(item => !item.seleccionado).length;
         estadoApp.carrito = estadoApp.carrito.filter(item => !item.seleccionado);
         guardarCarritoLocal();
+        await sincronizarCarritoDesdeApi();
+        const pendientesDespuesDePagar = estadoApp.carrito.length || pendientesAntesDePagar;
         actualizarIconoCarrito();
         actualizarPanelCarrito();
         window.location.hash = '/';
 
         setTimeout(() => {
+          const mensajePendientes = pendientesDespuesDePagar > 0
+            ? `<p class="text-sm mt-2 text-slate-600">Dejamos ${pendientesDespuesDePagar} producto(s) pendiente(s) en tu carrito para esta sesiÃ³n.</p>`
+            : '';
           mostrarModal(
             'Pedido confirmado con exito',
-            estadoApp.usuarioActual?.id
+            (estadoApp.usuarioActual?.id
               ? '<p class="text-sm">Gracias por tu pedido. Puedes ver tus pedidos en tu perfil.</p>'
-              : '<p class="text-sm">Gracias por tu compra. Te enviaremos un correo con el detalle de tu pedido.</p>'
+              : '<p class="text-sm">Gracias por tu compra. Te enviaremos un correo con el detalle de tu pedido.</p>') + mensajePendientes
           );
           setTimeout(() => {
             cerrarModal();
-            window.location.reload();
-          }, 4500);
-        }, 150);
+          }, 14500);
+        }, 10500);
       } else {
         botonesPago.forEach(b => {
           b.disabled = false;
@@ -2260,17 +2290,26 @@ function configurarEventosVistaCarritoCompleto() {
       return;
     }
 
-    const inputSel = evento.target.closest('[data-carrito-seleccion]');
-    if (inputSel) {
-      const productoId = parseInt(inputSel.dataset.carritoSeleccion);
-      const seleccionado = inputSel.checked;
-      await actualizarSeleccionCarrito(productoId, seleccionado);
+      const inputSel = evento.target.closest('[data-carrito-seleccion]');
+      if (inputSel) {
+        const productoId = parseInt(inputSel.dataset.carritoSeleccion);
+        const seleccionado = inputSel.checked;
+        await actualizarSeleccionCarrito(productoId, seleccionado);
       actualizarValoresCarritoEnTiempoReal();
       return;
     }
   });
 
   contenedor.addEventListener('click', async (evento) => {
+    const btnSeleccion = evento.target.closest('[data-carrito-seleccion-boton]');
+    if (btnSeleccion) {
+      const productoId = parseInt(btnSeleccion.dataset.carritoSeleccionBoton);
+      const seleccionado = btnSeleccion.dataset.seleccion === '1';
+      await actualizarSeleccionCarrito(productoId, seleccionado);
+      actualizarValoresCarritoEnTiempoReal();
+      return;
+    }
+
     const btnDecrementar = evento.target.closest('[data-carrito-decrementar]');
     if (btnDecrementar && !btnDecrementar.disabled) {
       const productoId = parseInt(btnDecrementar.dataset.carritoDecrementar);
@@ -4478,7 +4517,7 @@ function actualizarPanelCarrito() {
       const stockDisponible = obtenerStockProducto(productoCatalogo || producto);
       const estaAgotado = stockDisponible <= 0;
       const subtotalItem = producto.precio * item.cantidad;
-      subtotal += subtotalItem;
+      if (item.seleccionado) subtotal += subtotalItem;
 
       let imagenUrl = '';
       if (producto.imagen && typeof producto.imagen === 'string' && producto.imagen.trim() !== '') {
@@ -4505,6 +4544,20 @@ function actualizarPanelCarrito() {
             <h4 class="font-medium text-xs truncate">${producto.nombre}</h4>
             <p class="text-chapinAzul font-semibold text-sm mt-1">Q${producto.precio.toFixed(2)}</p>
             ${estaAgotado ? productoAgotadoHTML('mt-1') : `<p class="text-[11px] text-slate-500 mt-1">Stock disponible: ${stockDisponible}</p>`}
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <button type="button"
+                      data-panel-seleccion="${item.productoId}"
+                      data-seleccion="1"
+                      class="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition ${item.seleccionado ? 'bg-chapinAzul text-white border-chapinAzul' : 'bg-white text-chapinAzul border-chapinAzul hover:bg-blue-50'}">
+                Comprar ahora
+              </button>
+              <button type="button"
+                      data-panel-seleccion="${item.productoId}"
+                      data-seleccion="0"
+                      class="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition ${!item.seleccionado ? 'bg-slate-600 text-white border-slate-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}">
+                Comprar después
+              </button>
+            </div>
             <div class="flex items-center justify-between mt-2">
               <div class="cantidad-control">
                 <button data-cantidad-decrementar="${item.productoId}" 
@@ -4516,7 +4569,7 @@ function actualizarPanelCarrito() {
                   ${estaAgotado || item.cantidad >= stockDisponible ? 'disabled' : ''}
                   class="text-slate-600 hover:text-chapinAzul w-6 h-6 flex items-center justify-center"><img src="${ICONOS.mas}" alt="+" class="w-3 h-3"></button>
               </div>
-              <span class="font-bold text-chapinAzul text-sm">Q${subtotalItem.toFixed(2)}</span>
+              <span class="font-bold text-chapinAzul text-sm ${item.seleccionado ? '' : 'opacity-50'}">Q${subtotalItem.toFixed(2)}</span>
             </div>
             <button data-eliminar-carrito-panel="${item.productoId}" 
                     class="mt-1 text-xs text-red-400 hover:text-red-600 transition flex items-center gap-1"><img src="${ICONOS.eliminar}" alt="Eliminar" class="w-4 h-4"> Eliminar</button>
@@ -4531,6 +4584,20 @@ function actualizarPanelCarrito() {
 
   configurarEventosCantidadCarrito();
   configurarEventosEliminarCarrito();
+  configurarEventosSeleccionPanelCarrito();
+}
+
+function configurarEventosSeleccionPanelCarrito() {
+  document.querySelectorAll('[data-panel-seleccion]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const productoId = parseInt(btn.dataset.panelSeleccion);
+      const seleccionado = btn.dataset.seleccion === '1';
+      await actualizarSeleccionCarrito(productoId, seleccionado);
+      actualizarPanelCarrito();
+      actualizarIconoCarrito();
+    });
+  });
 }
 
 function configurarEventosCantidadCarrito() {
