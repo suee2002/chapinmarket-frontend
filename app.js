@@ -1711,6 +1711,7 @@ function actualizarValoresCarritoEnTiempoReal() {
 
 function vistaCheckout() {
   const productosSeleccionados = estadoApp.carrito.filter(item => item.seleccionado);
+  const esInvitado = !estadoApp.usuarioActual?.id;
 
   const subtotal = productosSeleccionados.reduce((sum, item) => {
     const prod = estadoApp.productos.find(p => p.id === item.productoId);
@@ -1721,7 +1722,7 @@ function vistaCheckout() {
   const total = subtotal + envio;
 
   // ----- Lógica de dirección seleccionada (PREDETERMINADA o ÚLTIMA CREADA) -----
-  const direcciones = estadoApp.usuarioActual?.direcciones || [];
+  const direcciones = esInvitado ? [] : (estadoApp.usuarioActual?.direcciones || []);
   const direccionPredeterminada = direcciones.find(d => d.esPredeterminada);
   const idDireccionSeleccionada = estadoApp.checkoutDireccionSeleccionadaId
     || (direccionPredeterminada?.id)
@@ -1747,8 +1748,53 @@ function vistaCheckout() {
   `;
   }).join('');
 
+  const formularioInvitadoHTML = `
+    <div class="space-y-4">
+      <div class="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-chapinAzul">
+        Puedes comprar como invitado. Usaremos tus datos solo para coordinar la entrega y enviarte la confirmaciÃ³n del pedido.
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">Nombre completo</label>
+          <input id="guest-nombre" type="text" placeholder="Nombre y apellido"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Correo electrÃ³nico</label>
+          <input id="guest-correo" type="email" placeholder="correo@ejemplo.com"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">TelÃ©fono</label>
+          <input id="guest-telefono" type="tel" placeholder="+502 0000 0000"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-slate-600 mb-1">DirecciÃ³n de entrega</label>
+          <input id="guest-linea1" type="text" placeholder="Calle, avenida, casa, referencia"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Ciudad</label>
+          <input id="guest-ciudad" type="text" value="Ciudad de Guatemala"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Departamento</label>
+          <input id="guest-departamento" type="text" value="Guatemala"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">CÃ³digo postal</label>
+          <input id="guest-codigo-postal" type="text" placeholder="Opcional"
+                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-chapinNaranja focus:border-transparent" />
+        </div>
+      </div>
+    </div>
+  `;
+
   // Tarjetas guardadas
-  const tarjetas = estadoApp.usuarioActual?.tarjetas || [];
+  const tarjetas = esInvitado ? [] : (estadoApp.usuarioActual?.tarjetas || []);
   const tarjetasHTML = tarjetas.map(t => {
     const ultimos4 = t.numeroEnmascarado?.slice(-4) || '****';
     return `
@@ -1798,10 +1844,13 @@ function vistaCheckout() {
             <h2 class="font-semibold text-chapinAzul flex items-center gap-2 mb-4">
               <img src="${ICONOS.ubicacion}" alt="Ubicación" class="w-5 h-5" /> Dirección de envío
             </h2>
-            <div id="contenedor-direcciones-checkout">
+            ${esInvitado
+      ? formularioInvitadoHTML
+      : `<div id="contenedor-direcciones-checkout">
               ${opcionesDireccionHTML}
-            </div>
-            ${direcciones.length === 0
+            </div>`
+    }
+            ${!esInvitado && direcciones.length === 0
       ? '<p class="text-sm text-red-500 mt-2">No tienes direcciones guardadas. Agrega una en tu perfil para continuar.</p>'
       : ''
     }
@@ -1814,17 +1863,17 @@ function vistaCheckout() {
             </h2>
             
             <div class="space-y-2 mb-3" id="contenedor-tarjetas-guardadas">
-              ${tarjetasHTML || '<p class="text-sm text-slate-500 py-2">No tienes tarjetas guardadas.</p>'}
+              ${esInvitado ? '' : (tarjetasHTML || '<p class="text-sm text-slate-500 py-2">No tienes tarjetas guardadas.</p>')}
             </div>
 
             <!-- Opción nueva tarjeta (símbolo + perfectamente centrado) -->
-            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 has-[:checked]:border-chapinNaranja has-[:checked]:bg-orange-50">
-              <input type="radio" name="tarjeta-seleccionada" value="nueva" class="sr-only peer" />
+            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 has-[:checked]:border-chapinNaranja has-[:checked]:bg-orange-50 ${esInvitado ? 'border-chapinNaranja bg-orange-50' : ''}">
+              <input type="radio" name="tarjeta-seleccionada" value="nueva" class="sr-only peer" ${esInvitado ? 'checked' : ''} />
               <div class="plus-nueva-tarjeta">+</div>
-              <span class="text-sm font-medium">Usar una nueva tarjeta</span>
+              <span class="text-sm font-medium">${esInvitado ? 'Datos de tarjeta' : 'Usar una nueva tarjeta'}</span>
             </label>
 
-            <div id="form-nueva-tarjeta" class="hidden mt-4 space-y-3 p-4 bg-slate-50 rounded-xl">
+            <div id="form-nueva-tarjeta" class="${esInvitado ? '' : 'hidden'} mt-4 space-y-3 p-4 bg-slate-50 rounded-xl">
               <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Titular de la tarjeta</label>
                 <input id="nueva-titular" type="text" placeholder="Como aparece en la tarjeta"
@@ -1915,11 +1964,6 @@ function configurarEventosVistaCheckout() {
     btnPago.addEventListener('click', async () => {
       if (btnPago.disabled) return;
 
-      if (!estadoApp.usuarioActual || !estadoApp.usuarioActual.id) {
-        mostrarModal('Inicia sesión', '<p class="text-sm">Debes iniciar sesión para procesar el pago.</p>');
-        return;
-      }
-
       const productosSeleccionados = estadoApp.carrito.filter(item => item.seleccionado);
       if (!productosSeleccionados.length) {
         mostrarModal('Carrito vacío', '<p class="text-sm">Selecciona al menos un producto para pagar.</p>');
@@ -1956,8 +2000,10 @@ function configurarEventosVistaCheckout() {
 
         setTimeout(() => {
           mostrarModal(
-            '✅ Hemos recibido tu pedido exitosamente!',
-            '<p class="text-sm">Gracias por tu pedido! Puedes ver tus pedidos en tu perfil/pedidos</p>'
+            'Pedido confirmado con exito',
+            estadoApp.usuarioActual?.id
+              ? '<p class="text-sm">Gracias por tu pedido. Puedes ver tus pedidos en tu perfil.</p>'
+              : '<p class="text-sm">Gracias por tu compra. Te enviaremos un correo con el detalle de tu pedido.</p>'
           );
           setTimeout(() => {
             cerrarModal();
@@ -2028,6 +2074,41 @@ function mostrarModalCargaPago() {
 }
 
 async function obtenerDatosPagoCheckout() {
+  const esInvitado = !estadoApp.usuarioActual?.id;
+
+  if (esInvitado) {
+    const carritoResp = await llamarApi('/public/carrito', { method: 'GET' });
+    const datosCarrito = carritoResp.datos?.data || carritoResp.datos || {};
+    const carritoId = datosCarrito.carrito_id || datosCarrito.carritoId;
+
+    if (!carritoResp.ok || !carritoId) {
+      return { ok: false, mensaje: 'No se pudo obtener el carrito activo.' };
+    }
+
+    const datosInvitado = obtenerDatosInvitadoCheckout();
+    if (!datosInvitado.ok) {
+      return datosInvitado;
+    }
+
+    const tarjeta = obtenerTarjetaCheckout();
+    if (!tarjeta.ok) {
+      return tarjeta;
+    }
+
+    return {
+      ok: true,
+      payload: {
+        invitado: true,
+        carritoId,
+        envio: 25,
+        ...datosInvitado.payload,
+        titular: tarjeta.titular,
+        numeroTarjeta: tarjeta.numeroTarjeta,
+        vencimiento: tarjeta.vencimiento
+      }
+    };
+  }
+
   const perfilResp = await llamarApi('/public/perfil', { method: 'GET' });
   if (perfilResp.ok && perfilResp.datos) {
     estadoApp.usuarioActual = {
@@ -2078,6 +2159,41 @@ function obtenerDireccionCheckout() {
   }
 
   return direcciones.find(d => Number(d.esPredeterminada) === 1) || direcciones[0] || null;
+}
+
+function obtenerDatosInvitadoCheckout() {
+  const nombre = document.getElementById('guest-nombre')?.value.trim();
+  const correo = document.getElementById('guest-correo')?.value.trim();
+  const telefono = document.getElementById('guest-telefono')?.value.trim();
+  const linea1 = document.getElementById('guest-linea1')?.value.trim();
+  const ciudad = document.getElementById('guest-ciudad')?.value.trim();
+  const departamento = document.getElementById('guest-departamento')?.value.trim();
+  const codigoPostal = document.getElementById('guest-codigo-postal')?.value.trim();
+
+  if (!nombre || !correo || !telefono || !linea1 || !ciudad || !departamento) {
+    return { ok: false, mensaje: 'Completa nombre, correo, telefono y direccion de entrega.' };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+    return { ok: false, mensaje: 'Ingresa un correo valido para recibir el detalle de tu pedido.' };
+  }
+
+  const direccionEnvio = [
+    linea1,
+    ciudad,
+    departamento,
+    codigoPostal ? `CP ${codigoPostal}` : ''
+  ].filter(Boolean).join(', ');
+
+  return {
+    ok: true,
+    payload: {
+      nombreContacto: nombre,
+      correoContacto: correo,
+      telefonoContacto: telefono,
+      direccionEnvio
+    }
+  };
 }
 
 function obtenerTarjetaCheckout() {
@@ -2782,7 +2898,7 @@ function tabPedidos(pedidos) {
             </button>
             <div>
               <p class="font-bold text-chapinAzul">Q${(p.total || 0).toFixed(2)}</p>
-              <span class="text-xs px-2 py-1 rounded-full ${obtenerEstiloEstadoPedido(p.estado)}">${p.estado || 'pendiente'}</span>
+              <span class="text-xs px-2 py-1 rounded-full ${obtenerEstiloEstadoPedido(p.estado)}">${p.estado || 'enviado'}</span>
             </div>
           </div>
         </div>
@@ -2859,7 +2975,7 @@ function renderDetallePedido(pedido) {
           <p class="text-sm text-slate-500">${formatearFechaPedido(pedido.fecha)}</p>
         </div>
         <span class="self-start text-xs px-3 py-1 rounded-full font-semibold ${obtenerEstiloEstadoPedido(pedido.estado)}">
-          ${pedido.estado || 'pendiente'}
+          ${pedido.estado || 'enviado'}
         </span>
       </div>
 
